@@ -37,6 +37,7 @@ export function isPersistableSessionRoute(
     route.includes(WalletRoutes.PortfolioNFTs) ||
     route.includes(WalletRoutes.PortfolioNFTAsset) ||
     route.includes(WalletRoutes.Market) ||
+    route.includes(WalletRoutes.Explore) ||
     route.includes(WalletRoutes.LocalIpfsNode) ||
     route.includes(WalletRoutes.InspectNfts)
   if (isPanel) {
@@ -306,6 +307,10 @@ export const makePortfolioNftsRoute = (
     page: page?.toString() || '1'
   })
   return `${WalletRoutes.PortfolioNFTs}?${params.toString()}`
+}
+
+export const makeDappDetailsRoute = (dappId: string) => {
+  return WalletRoutes.Web3DappDetails.replace(':dappId', dappId?.toString())
 }
 
 // Tabs

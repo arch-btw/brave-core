@@ -1369,6 +1369,8 @@ provideStrings({
     'Brave works with a partner to provide this service. ' +
     'By enabling, you agree to share unsigned transactions ' +
     'and their DApp URLs with our partner.',
+
+  // Settings
   braveWalletChangeAnytimeInSettings: 'Change anytime in $1Settings$2.',
 
   // Balance Details Modal
@@ -1382,5 +1384,10 @@ provideStrings({
   braveWalletUnavailableBalances: 'Some balances may be unavailable',
 
   // Misc. placeholders
-  braveWalletExempliGratia: 'e.g $1'
+  braveWalletExempliGratia: 'e.g $1',
+  braveWalletUnavailableBalances: 'Some balances may be unavailable',
+
+  // Explore
+  braveWalletWeb3: 'Web3',
+  braveWalletTopNavExplore: 'Explore'
 })
