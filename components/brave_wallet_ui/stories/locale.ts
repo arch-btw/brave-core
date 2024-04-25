@@ -1392,5 +1392,8 @@ provideStrings({
   braveWalletTopNavExplore: 'Explore',
   braveWalletNoDappsFound: 'No DApps found',
   braveWalletActiveWallets: 'Active wallets',
-  braveWalletVisitDapp: 'Visit $1'
+  braveWalletVisitDapp: 'Visit $1',
+  braveWalletFilters: 'Filters',
+  braveWalletClearFilters: 'Clear filters'
+
 })
