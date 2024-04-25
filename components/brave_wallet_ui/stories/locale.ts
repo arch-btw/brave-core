@@ -1394,6 +1394,6 @@ provideStrings({
   braveWalletActiveWallets: 'Active wallets',
   braveWalletVisitDapp: 'Visit $1',
   braveWalletFilters: 'Filters',
-  braveWalletClearFilters: 'Clear filters'
-
+  braveWalletClearFilters: 'Clear filters',
+  braveWalletShowMore: 'Show more'
 })
