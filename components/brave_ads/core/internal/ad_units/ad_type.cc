@@ -45,8 +45,9 @@ constexpr auto kAdTypeToStringMap =
 
 AdType ToAdType(std::string_view value) {
   const auto iter = kToAdTypeMap.find(value);
-  if (iter != kToAdTypeMap.cend()) {
-    return iter->second;
+  if (iter == kToAdTypeMap.cend()) {
+    SCOPED_CRASH_KEY_STRING32("BraveAds", "ad_type", value);
+    NOTREACHED_NORETURN() << "Unexpected value for AdType: " << value;
   }
 
   // TODO(https://github.com/brave/brave-browser/issues/32066): Detect
