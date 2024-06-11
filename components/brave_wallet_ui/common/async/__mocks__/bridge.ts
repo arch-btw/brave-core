@@ -1169,11 +1169,6 @@ export class MockedWalletApiProxy {
     extractIPFSUrlFromGatewayLikeUrl: async function (url: string) {
       return { ipfsUrl: url }
     },
-    translateToNFTGatewayURL: async function (url: string) {
-      return {
-        translatedUrl: url
-      }
-    },
     translateToGatewayURL: async function (url: string) {
       return {
         translatedUrl: url
