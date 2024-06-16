@@ -88,7 +88,7 @@ void MigrateClientState(InitializeCallback callback) {
                               "Failed to migrated client state");
                           base::debug::DumpWithoutCrashing();
 
-                          BLOG(0, "Failed to migrated client state");
+                          BLOG(0, "Failed to migrate client state");
 
                           return FailedToMigrate(std::move(callback));
                         }

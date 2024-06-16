@@ -28,12 +28,6 @@ void BuildStatement(BuildStatementCallback callback) {
           [](BuildStatementCallback callback, const bool success,
              const TransactionList& transactions) {
             if (!success) {
-              // TODO(https://github.com/brave/brave-browser/issues/32066):
-              // Detect potential defects using `DumpWithoutCrashing`.
-              SCOPED_CRASH_KEY_STRING64("Issue32066", "failure_reason",
-                                        "Failed to get transactions");
-              base::debug::DumpWithoutCrashing();
-
               BLOG(0, "Failed to get transactions");
 
               return std::move(callback).Run(/*statement=*/nullptr);
