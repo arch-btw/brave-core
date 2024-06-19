@@ -32,6 +32,7 @@
 #include "brave/components/brave_news/common/brave_news.mojom-forward.h"
 #include "brave/components/brave_news/common/brave_news.mojom-shared.h"
 #include "brave/components/brave_news/common/subscriptions_snapshot.h"
+#include "brave/components/brave_news/common/subscriptions_snapshot.h"
 #include "brave/components/brave_private_cdn/headers.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 

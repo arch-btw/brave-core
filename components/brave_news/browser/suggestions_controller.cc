@@ -25,6 +25,7 @@
 #include "brave/components/brave_news/browser/urls.h"
 #include "brave/components/brave_news/common/brave_news.mojom-shared.h"
 #include "brave/components/brave_news/common/subscriptions_snapshot.h"
+#include "brave/components/brave_news/common/subscriptions_snapshot.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_types.h"
 

@@ -5,6 +5,7 @@
 
 #include "brave/components/brave_news/browser/brave_news_pref_manager.h"
 
+
 #include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
 #include "brave/components/brave_news/common/brave_news.mojom.h"
