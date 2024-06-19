@@ -26,7 +26,6 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
-#include "brave/components/brave_news/common/subscriptions_snapshot.h"
 
 namespace brave_news {
 

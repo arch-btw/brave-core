@@ -23,6 +23,7 @@
 #include "brave/components/brave_news/common/subscriptions_snapshot.h"
 #include "components/history/core/browser/history_service.h"
 #include "brave/components/brave_news/common/subscriptions_snapshot.h"
+#include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_types.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
@@ -246,7 +247,7 @@ void FeedController::NotifyUpdateDone() {
 
   // Notify listeners.
   for (const auto& listener : listeners_) {
-    listener->OnUpdateAvailable(current_feed_.hash);
+    listener->OnFeedUpdated();
   }
 }
 
