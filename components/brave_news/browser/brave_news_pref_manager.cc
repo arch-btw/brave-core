@@ -83,6 +83,7 @@ void BraveNewsPrefManager::RemoveObserver(PrefObserver* observer) {
 
 bool BraveNewsPrefManager::IsEnabled() {
   return brave_news::IsEnabled(&*prefs_);
+  return brave_news::IsEnabled(&*prefs_);
 }
 
 brave_news::mojom::ConfigurationPtr BraveNewsPrefManager::GetConfig() {
