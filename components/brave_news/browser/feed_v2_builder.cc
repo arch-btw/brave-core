@@ -610,7 +610,7 @@ FeedV2Builder::FeedV2Builder(
     PublishersController& publishers_controller,
     ChannelsController& channels_controller,
     SuggestionsController& suggestions_controller,
-    history::HistoryService& history_service,
+    history::HistoryService* history_service,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
     : publishers_controller_(publishers_controller),
       channels_controller_(channels_controller),
@@ -619,7 +619,7 @@ FeedV2Builder::FeedV2Builder(
       topics_fetcher_(url_loader_factory),
       signal_calculator_(publishers_controller,
                          channels_controller,
-                         history_service) {}
+                         *history_service) {}
 
 FeedV2Builder::~FeedV2Builder() = default;
 

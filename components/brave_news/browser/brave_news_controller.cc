@@ -143,7 +143,7 @@ bool BraveNewsController::MaybeInitFeedV2() {
   if (!feed_v2_builder_) {
     feed_v2_builder_ = std::make_unique<FeedV2Builder>(
         publishers_controller_, channels_controller_, suggestions_controller_,
-        *history_service_.get(), url_loader_factory_);
+        history_service_.get(), url_loader_factory_);
   }
 
   return true;

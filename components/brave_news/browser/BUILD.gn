@@ -10,6 +10,8 @@ static_library("browser") {
   sources = [
     "brave_news_controller.cc",
     "brave_news_controller.h",
+    "brave_news_engine.cc",
+    "brave_news_engine.h",
     "brave_news_p3a.cc",
     "brave_news_p3a.h",
     "brave_news_pref_manager.cc",
