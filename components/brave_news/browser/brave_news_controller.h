@@ -13,8 +13,10 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/scoped_observation.h"
 #include "base/task/cancelable_task_tracker.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
 #include "brave/components/api_request_helper/api_request_helper.h"
+#include "brave/components/brave_news/browser/brave_news_engine.h"
 #include "brave/components/brave_news/browser/brave_news_p3a.h"
 #include "brave/components/brave_news/browser/brave_news_pref_manager.h"
 #include "brave/components/brave_news/browser/channels_controller.h"
@@ -79,13 +81,9 @@ class BraveNewsController
   // Remove any cache that would identify user browsing history
   void ClearHistory();
 
-  PublishersController* publisher_controller() {
-    return &publishers_controller_;
-  }
+  PublishersController* publisher_controller() { return nullptr; }
 
   BraveNewsPrefManager& prefs() { return pref_manager_; }
-
-  bool MaybeInitFeedV2();
 
   // mojom::BraveNewsController
   void GetLocale(GetLocaleCallback callback) override;
@@ -180,11 +178,10 @@ class BraveNewsController
   p3a::NewsMetrics news_metrics_;
 
   DirectFeedController direct_feed_controller_;
-  PublishersController publishers_controller_;
-  ChannelsController channels_controller_;
-  FeedController feed_controller_;
-  SuggestionsController suggestions_controller_;
-  std::unique_ptr<FeedV2Builder> feed_v2_builder_;
+
+  // Created on this thread but lives on a background sequence.
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
+  std::unique_ptr<BraveNewsEngine, base::OnTaskRunnerDeleter> engine_;
 
   base::OneShotTimer timer_prefetch_;
   base::RepeatingTimer timer_feed_update_;

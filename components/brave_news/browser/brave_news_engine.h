@@ -60,6 +60,8 @@ class BraveNewsEngine {
   void GetSuggestedPublisherIds(SubscriptionsSnapshot snapshot,
                                 m::GetSuggestedPublisherIdsCallback callback);
 
+  base::WeakPtr<BraveNewsEngine> GetWeakPtr();
+
  private:
   FeedV2Builder* MaybeFeedV2Builder();
   FeedController* MaybeFeedV1Builder();

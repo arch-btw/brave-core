@@ -24,10 +24,13 @@
 #include "base/location.h"
 #include "base/memory/weak_ptr.h"
 #include "base/one_shot_event.h"
+#include "base/task/bind_post_task.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "brave/components/api_request_helper/api_request_helper.h"
 #include "brave/components/brave_ads/browser/ads_service.h"
+#include "brave/components/brave_news/browser/brave_news_engine.h"
 #include "brave/components/brave_news/browser/brave_news_p3a.h"
 #include "brave/components/brave_news/browser/brave_news_pref_manager.h"
 #include "brave/components/brave_news/browser/channels_controller.h"
@@ -82,6 +85,13 @@ mojo::StructPtr<EventType> CreateChangeEvent(
 
 }  // namespace
 
+#define IN_ENGINE(Method, __VARGS__, CB)                              \
+  task_runner_->PostTask(                                             \
+      FROM_HERE,                                                      \
+      base::BindOnce(&BraveNewsEngine::Method,                        \
+                     pref_manager_.GetSubscriptions(), ... __VARGS__, \
+                     base::BindPostTaskToCurrentDefault(callback)))
+
 BraveNewsController::BraveNewsController(
     PrefService* prefs,
     favicon::FaviconService* favicon_service,
@@ -98,14 +108,6 @@ BraveNewsController::BraveNewsController(
       pref_manager_(*prefs),
       news_metrics_(prefs, pref_manager_),
       direct_feed_controller_(url_loader_factory),
-      publishers_controller_(&api_request_helper_),
-      channels_controller_(&publishers_controller_),
-      feed_controller_(&publishers_controller_,
-                       history_service,
-                       url_loader_factory),
-      suggestions_controller_(&publishers_controller_,
-                              &api_request_helper_,
-                              history_service),
       initialization_promise_(3, pref_manager_, publishers_controller_),
       weak_ptr_factory_(this) {
   DCHECK(prefs);
@@ -161,8 +163,8 @@ void BraveNewsController::GetLocale(GetLocaleCallback callback) {
     std::move(callback).Run("");
     return;
   }
-  publishers_controller_.GetLocale(pref_manager_.GetSubscriptions(),
-                                   std::move(callback));
+
+  IN_ENGINE(GetLocale, std::move(callback));
 }
 
 void BraveNewsController::GetFeed(GetFeedCallback callback) {
@@ -180,40 +182,22 @@ void BraveNewsController::GetFeed(GetFeedCallback callback) {
                        weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
     return;
   }
-  feed_controller_.GetOrFetchFeed(pref_manager_.GetSubscriptions(),
-                                  std::move(callback));
+  
+  IN_ENGINE(GetFeed, std::move(callback));
 }
 
 void BraveNewsController::GetFollowingFeed(GetFollowingFeedCallback callback) {
-  if (!MaybeInitFeedV2()) {
-    std::move(callback).Run(mojom::FeedV2::New());
-    return;
-  }
-
-  feed_v2_builder_->BuildFollowingFeed(pref_manager_.GetSubscriptions(),
-                                       std::move(callback));
+  IN_ENGINE(GetFollowingFeed, std::move(callback));
 }
 
 void BraveNewsController::GetChannelFeed(const std::string& channel,
                                          GetChannelFeedCallback callback) {
-  if (!MaybeInitFeedV2()) {
-    std::move(callback).Run(mojom::FeedV2::New());
-    return;
-  }
-
-  feed_v2_builder_->BuildChannelFeed(pref_manager_.GetSubscriptions(), channel,
-                                     std::move(callback));
+  IN_ENGINE(GetChannelFeed, channel, std::move(callback));
 }
 
 void BraveNewsController::GetPublisherFeed(const std::string& publisher_id,
                                            GetPublisherFeedCallback callback) {
-  if (!MaybeInitFeedV2()) {
-    std::move(callback).Run(mojom::FeedV2::New());
-    return;
-  }
-
-  feed_v2_builder_->BuildPublisherFeed(pref_manager_.GetSubscriptions(),
-                                       publisher_id, std::move(callback));
+  IN_ENGINE(GetPublisherFeed, publisher_id, std::move(callback));
 }
 
 void BraveNewsController::EnsureFeedV2IsUpdating() {
@@ -904,5 +888,7 @@ void BraveNewsController::NotifyChannelsChanged(mojom::ChannelsEventPtr event) {
     observer->Changed(event->Clone());
   }
 }
+
+#undef IN_ENGINE
 
 }  // namespace brave_news

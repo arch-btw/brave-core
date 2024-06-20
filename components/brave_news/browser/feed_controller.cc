@@ -247,7 +247,7 @@ void FeedController::NotifyUpdateDone() {
 
   // Notify listeners.
   for (const auto& listener : listeners_) {
-    listener->OnFeedUpdated();
+    listener->OnUpdateAvailable(current_feed_.hash);
   }
 }
 

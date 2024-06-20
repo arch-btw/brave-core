@@ -9,6 +9,7 @@
 
 #include "base/feature_list.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "brave/components/api_request_helper/api_request_helper.h"
 #include "brave/components/brave_news/browser/channels_controller.h"
@@ -136,6 +137,10 @@ FeedController* BraveNewsEngine::MaybeFeedV1Builder() {
   }
 
   return feed_controller_.get();
+}
+
+base::WeakPtr<BraveNewsEngine> BraveNewsEngine::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 }  // namespace brave_news
