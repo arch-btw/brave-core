@@ -85,12 +85,18 @@ mojo::StructPtr<EventType> CreateChangeEvent(
 
 }  // namespace
 
-#define IN_ENGINE(Method, __VARGS__, CB)                              \
+#define IN_ENGINE(Method, CB, ...)                                    \
   task_runner_->PostTask(                                             \
       FROM_HERE,                                                      \
-      base::BindOnce(&BraveNewsEngine::Method,                        \
-                     pref_manager_.GetSubscriptions(), ... __VARGS__, \
-                     base::BindPostTaskToCurrentDefault(callback)))
+      base::BindOnce(&BraveNewsEngine::Method, engine_->GetWeakPtr(), \
+                     pref_manager_.GetSubscriptions(), __VA_ARGS__,   \
+                     base::BindPostTaskToCurrentDefault(CB)))
+
+#define IN_ENGINE_FF(Method)                                          \
+  task_runner_->PostTask(                                             \
+      FROM_HERE,                                                      \
+      base::BindOnce(&BraveNewsEngine::Method, engine_->GetWeakPtr(), \
+                     pref_manager_.GetSubscriptions()))
 
 BraveNewsController::BraveNewsController(
     PrefService* prefs,
@@ -135,22 +141,6 @@ void BraveNewsController::ClearHistory() {
   // feed cache somewhere.
 }
 
-bool BraveNewsController::MaybeInitFeedV2() {
-  if (!pref_manager_.IsEnabled() ||
-      !base::FeatureList::IsEnabled(
-          brave_news::features::kBraveNewsFeedUpdate)) {
-    return false;
-  }
-
-  if (!feed_v2_builder_) {
-    feed_v2_builder_ = std::make_unique<FeedV2Builder>(
-        publishers_controller_, channels_controller_, suggestions_controller_,
-        history_service_.get(), url_loader_factory_);
-  }
-
-  return true;
-}
-
 mojo::PendingRemote<mojom::BraveNewsController>
 BraveNewsController::MakeRemote() {
   mojo::PendingRemote<mojom::BraveNewsController> remote;
@@ -182,7 +172,7 @@ void BraveNewsController::GetFeed(GetFeedCallback callback) {
                        weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
     return;
   }
-  
+
   IN_ENGINE(GetFeed, std::move(callback));
 }
 
@@ -192,12 +182,12 @@ void BraveNewsController::GetFollowingFeed(GetFollowingFeedCallback callback) {
 
 void BraveNewsController::GetChannelFeed(const std::string& channel,
                                          GetChannelFeedCallback callback) {
-  IN_ENGINE(GetChannelFeed, channel, std::move(callback));
+  IN_ENGINE(GetChannelFeed, std::move(callback), channel);
 }
 
 void BraveNewsController::GetPublisherFeed(const std::string& publisher_id,
                                            GetPublisherFeedCallback callback) {
-  IN_ENGINE(GetPublisherFeed, publisher_id, std::move(callback));
+  IN_ENGINE(GetPublisherFeed, std::move(callback), publisher_id);
 }
 
 void BraveNewsController::EnsureFeedV2IsUpdating() {
@@ -205,7 +195,7 @@ void BraveNewsController::EnsureFeedV2IsUpdating() {
     return;
   }
 
-  feed_v2_builder_->EnsureFeedIsUpdating(pref_manager_.GetSubscriptions());
+  IN_ENGINE_FF(EnsureFeedV2IsUpdating);
 }
 
 void BraveNewsController::GetFeedV2(GetFeedV2Callback callback) {
@@ -223,18 +213,16 @@ void BraveNewsController::GetFeedV2(GetFeedV2Callback callback) {
                        weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
     return;
   }
-  feed_v2_builder_->BuildAllFeed(pref_manager_.GetSubscriptions(),
-                                 std::move(callback));
+
+  IN_ENGINE(BuildAllFeed, std::move(callback));
 }
 
 void BraveNewsController::GetSignals(GetSignalsCallback callback) {
-  if (!MaybeInitFeedV2()) {
+  if (!pref_manager_.IsEnabled()) {
     std::move(callback).Run({});
     return;
   }
-
-  feed_v2_builder_->GetSignals(pref_manager_.GetSubscriptions(),
-                               std::move(callback));
+  IN_ENGINE(GetSignals, std::move(callback));
 }
 
 void BraveNewsController::GetPublishers(GetPublishersCallback callback) {
@@ -242,8 +230,8 @@ void BraveNewsController::GetPublishers(GetPublishersCallback callback) {
     std::move(callback).Run({});
     return;
   }
-  publishers_controller_.GetOrFetchPublishers(pref_manager_.GetSubscriptions(),
-                                              std::move(callback));
+
+  IN_ENGINE(GetPublishers, std::move(callback));
 }
 
 void BraveNewsController::AddPublishersListener(
@@ -268,8 +256,7 @@ void BraveNewsController::AddPublishersListener(
 
 void BraveNewsController::GetSuggestedPublisherIds(
     GetSuggestedPublisherIdsCallback callback) {
-  suggestions_controller_.GetSuggestedPublisherIds(
-      pref_manager_.GetSubscriptions(), std::move(callback));
+  IN_ENGINE(GetSuggestedPublisherIds, std::move(callback));
 }
 
 void BraveNewsController::FindFeeds(const GURL& possible_feed_or_site_url,
@@ -289,8 +276,7 @@ void BraveNewsController::GetChannels(GetChannelsCallback callback) {
                        weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
     return;
   }
-  channels_controller_.GetAllChannels(pref_manager_.GetSubscriptions(),
-                                      std::move(callback));
+  IN_ENGINE(GetChannels, std::move(callback));
 }
 
 void BraveNewsController::AddChannelsListener(
@@ -321,15 +307,14 @@ void BraveNewsController::SetChannelSubscribed(
     bool subscribed,
     SetChannelSubscribedCallback callback) {
   pref_manager_.SetChannelSubscribed(locale, channel_id, subscribed);
-  channels_controller_.GetAllChannels(
-      pref_manager_.GetSubscriptions(),
-      base::BindOnce(
-          [](std::string channel_id, SetChannelSubscribedCallback callback,
-             Channels channels) {
-            auto channel = std::move(channels.at(channel_id));
-            std::move(callback).Run(std::move(channel));
-          },
-          channel_id, std::move(callback)));
+  IN_ENGINE(GetChannels,
+            base::BindOnce(
+                [](std::string channel_id,
+                   SetChannelSubscribedCallback callback, Channels channels) {
+                  auto channel = std::move(channels.at(channel_id));
+                  std::move(callback).Run(std::move(channel));
+                },
+                channel_id, std::move(callback)));
 }
 
 void BraveNewsController::SubscribeToNewDirectFeed(
@@ -890,5 +875,6 @@ void BraveNewsController::NotifyChannelsChanged(mojom::ChannelsEventPtr event) {
 }
 
 #undef IN_ENGINE
+#undef IN_ENGINE_FF
 
 }  // namespace brave_news
