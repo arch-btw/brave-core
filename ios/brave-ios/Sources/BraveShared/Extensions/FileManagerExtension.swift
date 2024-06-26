@@ -132,49 +132,6 @@ extension FileManager {
     }
   }
 
-  public func removeFolder(withName name: String, location: SearchPathDirectory) {
-    guard let locationUrl = location.url else { return }
-    let fileUrl = locationUrl.appendingPathComponent(name)
-
-    if !fileExists(atPath: fileUrl.path) {
-      Logger.module.debug("File \(fileUrl) doesn't exist")
-      return
-    }
-
-    do {
-      try removeItem(at: fileUrl)
-    } catch {
-      Logger.module.error("\(error.localizedDescription)")
-    }
-  }
-
-  public func moveFile(
-    sourceName: String,
-    sourceLocation: SearchPathDirectory,
-    destinationName: String,
-    destinationLocation: SearchPathDirectory
-  ) {
-    guard let sourceLocation = sourceLocation.url,
-      let destinationLocation = destinationLocation.url
-    else {
-      return
-    }
-
-    let sourceFileUrl = sourceLocation.appendingPathComponent(sourceName)
-    let destinationFileUrl = destinationLocation.appendingPathComponent(destinationName)
-
-    if !fileExists(atPath: sourceFileUrl.path) {
-      Logger.module.debug("File \(sourceFileUrl) doesn't exist")
-      return
-    }
-
-    do {
-      try moveItem(at: sourceFileUrl, to: destinationFileUrl)
-    } catch {
-      Logger.module.error("\(error.localizedDescription)")
-    }
-  }
-
   private func baseDirectory() -> String? {
     return NSSearchPathForDirectoriesInDomains(.libraryDirectory, .userDomainMask, true).first
   }
@@ -230,37 +187,5 @@ extension FileManager.SearchPathDirectory {
   /// Returns first url in user domain mask of given search path directory
   public var url: URL? {
     return FileManager.default.urls(for: self, in: .userDomainMask).first
-  }
-}
-
-extension FileManager {
-
-  /// Navigates to download Folder inside the application's folder
-  public func openBraveDownloadsFolder(_ completion: @escaping (Bool) -> Void) {
-    do {
-      guard
-        var downloadsPathComponents = URLComponents(
-          url: try FileManager.default.downloadsPath(),
-          resolvingAgainstBaseURL: false
-        )
-      else {
-        completion(false)
-        return
-      }
-
-      downloadsPathComponents.scheme = "shareddocuments"
-
-      guard let braveFolderURL = downloadsPathComponents.url else {
-        completion(false)
-        return
-      }
-
-      UIApplication.shared.open(braveFolderURL) { success in
-        completion(success)
-      }
-    } catch {
-      completion(false)
-      Logger.module.error("Unable to get downloads path: \(error.localizedDescription)")
-    }
   }
 }

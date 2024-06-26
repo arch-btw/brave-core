@@ -302,40 +302,6 @@ class RewardsDebugSettingsViewController: TableViewController {
     ]
   }
 
-  private func createLegacyLedger() {
-    let fm = FileManager.default
-    let stateStorage = URL(
-      fileURLWithPath: NSSearchPathForDirectoriesInDomains(
-        .applicationSupportDirectory,
-        .userDomainMask,
-        true
-      ).first!
-    )
-    let legacyLedger = stateStorage.appendingPathComponent("legacy_ledger")
-    let ledgerFolder = stateStorage.appendingPathComponent("ledger")
-
-    do {
-      // Check if we've already migrated the users wallet to the `legacy_rewards` folder
-      if fm.fileExists(atPath: legacyLedger.path) {
-        // Reset it if so
-        try fm.removeItem(atPath: legacyLedger.path)
-      }
-      // Copy the current `ledger` directory into the new legacy state storage path
-      try fm.copyItem(at: ledgerFolder, to: legacyLedger)
-      // Remove the old Rewards DB so that it starts fresh
-      try fm.removeItem(atPath: ledgerFolder.appendingPathComponent("Rewards.db").path)
-      // And remove the sqlite journal file if it exists
-      let journalPath = ledgerFolder.appendingPathComponent("Rewards.db-journal").path
-      if fm.fileExists(atPath: journalPath) {
-        try fm.removeItem(atPath: journalPath)
-      }
-
-      showResetRewardsAlert()
-    } catch {
-      print("Failed to migrate legacy wallet into a new folder: \(error.localizedDescription)")
-    }
-  }
-
   private func displayAlert(title: String? = nil, message: String) {
     DispatchQueue.main.async {
       let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)

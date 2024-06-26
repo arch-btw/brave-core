@@ -54,15 +54,12 @@ enum DefaultEngineType: String {
 /// The search engines are backed by a write-through cache into a ProfilePrefs instance.  This class
 /// is not thread-safe -- you should only access it on a single thread (usually, the main thread)!
 public class SearchEngines {
-  fileprivate let fileAccessor: FileAccessor
-
   private let initialSearchEngines: InitialSearchEngines
   private let locale: Locale
 
-  public init(files: FileAccessor, locale: Locale = .current) {
+  public init(locale: Locale = .current) {
     initialSearchEngines = InitialSearchEngines(locale: locale)
     self.locale = locale
-    self.fileAccessor = files
     self.disabledEngineNames = getDisabledEngineNames()
     self.orderedEngines = getOrderedEngines()
     self.recordSearchEngineP3A()
@@ -254,8 +251,21 @@ public class SearchEngines {
   }
 
   fileprivate func customEngineFilePath() -> String {
-    let profilePath = try! self.fileAccessor.getAndEnsureDirectory() as NSString
-    return profilePath.appendingPathComponent(customSearchEnginesFileName)
+    guard
+      let profilePath = FileManager.default.containerURL(
+        forSecurityApplicationGroupIdentifier: AppInfo.sharedContainerIdentifier
+      )?.appendingPathComponent("profile.profile").path
+    else {
+      let documentsPath = NSSearchPathForDirectoriesInDomains(
+        .documentDirectory,
+        .userDomainMask,
+        true
+      )[0]
+      return URL(fileURLWithPath: documentsPath).appendingPathComponent(customSearchEnginesFileName)
+        .path
+    }
+    return URL(fileURLWithPath: profilePath).appendingPathComponent(customSearchEnginesFileName)
+      .path
   }
 
   fileprivate lazy var customEngines: [OpenSearchEngine] = {

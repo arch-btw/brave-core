@@ -128,8 +128,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       Preferences.BraveNews.isShowingOptIn.value = languageShouldShowOptIn
     }
 
-    SystemUtils.onFirstRun()
-
     // Clean Logger for Secure content state
     DebugLogger.cleanLogger(for: .secureState)
 
