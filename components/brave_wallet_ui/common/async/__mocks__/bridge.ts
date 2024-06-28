@@ -1166,9 +1166,6 @@ export class MockedWalletApiProxy {
   braveWalletIpfsService: Partial<
     InstanceType<typeof BraveWallet.IpfsServiceInterface>
   > = {
-    extractIPFSUrlFromGatewayLikeUrl: async function (url: string) {
-      return { ipfsUrl: url }
-    },
     translateToGatewayURL: async function (url: string) {
       return {
         translatedUrl: url
