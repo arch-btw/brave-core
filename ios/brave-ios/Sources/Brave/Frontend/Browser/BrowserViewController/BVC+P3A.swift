@@ -246,7 +246,7 @@ extension BrowserViewController {
   }
 
   func recordAccessibilityDocumentsDirectorySizeP3A() {
-    func fetchDocumentsAndDataSize() -> Int? {
+    @Sendable func fetchDocumentsAndDataSize() async -> Int? {
       let fileManager = FileManager.default
 
       var directorySize = 0
@@ -288,12 +288,16 @@ extension BrowserViewController {
     ]
 
     // Q103 What is the document directory size in MB?
-    if let documentsSize = fetchDocumentsAndDataSize() {
-      UmaHistogramRecordValueToBucket(
-        "Brave.Core.DocumentsDirectorySizeMB",
-        buckets: buckets,
-        value: documentsSize
-      )
+    Task.detached {
+      if let documentsSize = await fetchDocumentsAndDataSize() {
+        await MainActor.run {
+          UmaHistogramRecordValueToBucket(
+            "Brave.Core.DocumentsDirectorySizeMB",
+            buckets: buckets,
+            value: documentsSize
+          )
+        }
+      }
     }
   }
 

@@ -381,11 +381,9 @@ public class FeedDataSource: ObservableObject {
     let data = try await data(for: resource)
     let decodedResource = try self.decoder.decode(DataType.self, from: data)
     if !data.isEmpty {
-      if !FileManager.default.writeToDiskInFolder(
-        data,
-        fileName: filename,
-        folderName: Self.cacheFolderName
-      ) {
+      if let cachePath = FileManager.default.getOrCreateFolder(name: Self.cacheFolderName) {
+        try data.write(to: cachePath.appending(path: filename), options: .atomic)
+      } else {
         Logger.module.error("Failed to write sources to disk")
       }
     }

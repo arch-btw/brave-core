@@ -72,7 +72,7 @@ extension BrowserViewController: WKDownloadDelegate {
       passbookHelper.open()
     }
 
-    Task {
+    Task.detached {
       try FileManager.default.removeItem(at: downloadInfo.fileURL)
     }
   }

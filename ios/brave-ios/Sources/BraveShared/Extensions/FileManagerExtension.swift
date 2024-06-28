@@ -80,28 +80,6 @@ extension FileManager {
     return false
   }
 
-  public func writeToDiskInFolder(
-    _ data: Data,
-    fileName: String,
-    folderName: String,
-    location: SearchPathDirectory = .applicationSupportDirectory
-  ) -> Bool {
-
-    guard let folderUrl = getOrCreateFolder(name: folderName, location: location) else {
-      return false
-    }
-
-    do {
-      let fileUrl = folderUrl.appendingPathComponent(fileName)
-      try data.write(to: fileUrl, options: [.atomic])
-    } catch {
-      Logger.module.error("Failed to write data, error: \(error.localizedDescription)")
-      return false
-    }
-
-    return true
-  }
-
   /// Creates a folder at given location and returns its URL.
   /// If folder already exists, returns its URL as well.
   @discardableResult
@@ -129,6 +107,22 @@ extension FileManager {
     } catch {
       Logger.module.error("Failed to create folder, error: \(error.localizedDescription)")
       return nil
+    }
+  }
+
+  public func removeFolder(withName name: String, location: SearchPathDirectory) {
+    guard let locationUrl = location.url else { return }
+    let fileUrl = locationUrl.appendingPathComponent(name)
+
+    if !fileExists(atPath: fileUrl.path) {
+      Logger.module.debug("File \(fileUrl) doesn't exist")
+      return
+    }
+
+    do {
+      try removeItem(at: fileUrl)
+    } catch {
+      Logger.module.error("\(error.localizedDescription)")
     }
   }
 
@@ -189,3 +183,4 @@ extension FileManager.SearchPathDirectory {
     return FileManager.default.urls(for: self, in: .userDomainMask).first
   }
 }
+
