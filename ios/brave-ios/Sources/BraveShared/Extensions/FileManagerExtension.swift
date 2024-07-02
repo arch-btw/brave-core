@@ -8,6 +8,28 @@ import UIKit
 import os.log
 
 extension FileManager {
+  /// URL where files downloaded by user are stored.
+  /// If the download folder doesn't exists it creates a new one
+  @available(
+    *,
+    deprecated,
+    message: "Use AsyncFileManager.url(for:appending:create:excludeFromBackups:)"
+  )
+  public func downloadsPath() throws -> URL {
+    FileManager.default.getOrCreateFolder(
+      name: "Downloads",
+      excludeFromBackups: true,
+      location: .documentDirectory
+    )
+
+    return try FileManager.default.url(
+      for: .documentDirectory,
+      in: .userDomainMask,
+      appropriateFor: nil,
+      create: false
+    ).appendingPathComponent("Downloads", isDirectory: true)
+  }
+
   public enum Folder: String {
     case cookie
     case webSiteData
@@ -27,24 +49,8 @@ extension FileManager {
   }
   public typealias FolderLockObj = (folder: Folder, lock: Bool)
 
-  /// URL where files downloaded by user are stored.
-  /// If the download folder doesn't exists it creates a new one
-  public func downloadsPath() throws -> URL {
-    FileManager.default.getOrCreateFolder(
-      name: "Downloads",
-      excludeFromBackups: true,
-      location: .documentDirectory
-    )
-
-    return try FileManager.default.url(
-      for: .documentDirectory,
-      in: .userDomainMask,
-      appropriateFor: nil,
-      create: false
-    ).appendingPathComponent("Downloads")
-  }
-
   // Lock a folder using FolderLockObj provided.
+  @available(*, deprecated, message: "Use AsyncFileManager.setWebDataAccess(atPath:)")
   @discardableResult public func setFolderAccess(_ lockObjects: [FolderLockObj]) -> Bool {
     guard let baseDir = baseDirectory() else { return false }
     for lockObj in lockObjects {
@@ -64,6 +70,7 @@ extension FileManager {
   }
 
   // Check the locked status of a folder. Returns true for locked.
+  @available(*, deprecated, message: "Use AsyncFileManager.isWebDataLocked(atPath:)")
   public func checkLockedStatus(folder: Folder) -> Bool {
     guard let baseDir = baseDirectory() else { return false }
     do {
@@ -82,6 +89,11 @@ extension FileManager {
 
   /// Creates a folder at given location and returns its URL.
   /// If folder already exists, returns its URL as well.
+  @available(
+    *,
+    deprecated,
+    message: "Use AsyncFileManager.url(for:appending:create:excludeFromBackups:)"
+  )
   @discardableResult
   public func getOrCreateFolder(
     name: String,
@@ -132,6 +144,7 @@ extension FileManager {
 
   /// Returns size of contents of the directory in bytes.
   /// Returns nil if any error happened during the size calculation.
+  @available(*, deprecated, message: "Use AsyncFileManager.sizeOfDirectory(at:)")
   public func directorySize(at directoryURL: URL) throws -> UInt64? {
     let allocatedSizeResourceKeys: Set<URLResourceKey> = [
       .isRegularFileKey,
@@ -179,7 +192,8 @@ extension FileManager {
 extension FileManager.SearchPathDirectory {
 
   /// Returns first url in user domain mask of given search path directory
-  public var url: URL? {
+  @available(*, deprecated, message: "Delete when getOrCreateFolder is removed")
+  fileprivate var url: URL? {
     return FileManager.default.urls(for: self, in: .userDomainMask).first
   }
 }

@@ -79,9 +79,9 @@ struct FilterListsView: View {
         customFilterListStorage.filterListsURLs.isEmpty && editMode?.wrappedValue.isEditing == false
       )
     }
-    .onAppear(perform: {
-      loadCustomRules()
-    })
+    .task {
+      await loadCustomRules()
+    }
   }
 
   private var customFiltersAccessibilityLabel: Text {
@@ -257,9 +257,9 @@ struct FilterListsView: View {
     }
   }
 
-  private func loadCustomRules() {
+  private func loadCustomRules() async {
     do {
-      self.customRules = try customFilterListStorage.loadCustomRules()
+      self.customRules = try await customFilterListStorage.loadCustomRules()
     } catch {
       rulesError = error
       customRules = nil

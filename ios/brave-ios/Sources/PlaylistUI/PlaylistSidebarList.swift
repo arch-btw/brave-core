@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import BraveShared
 import Data
 import Foundation
 import Playlist
@@ -210,7 +211,7 @@ struct PlaylistSidebarListHeader: View {
           let values = try cachedDataURL.resourceValues(forKeys: [.fileSizeKey, .isDirectoryKey])
           if values.isDirectory == true {
             // This item is an HLS stream saved as a movpkg, get the size of the directory instead
-            return Int(try FileManager.default.directorySize(at: cachedDataURL) ?? 0)
+            return Int(try await AsyncFileManager.default.sizeOfDirectory(at: cachedDataURL))
           }
           return values.fileSize ?? 0
         } catch {

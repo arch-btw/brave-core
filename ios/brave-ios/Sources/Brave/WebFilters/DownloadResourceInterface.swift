@@ -3,12 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import BraveShared
 import Foundation
-
-/// An object representing errors with the resource downloader
-enum ResourceFileError: Error {
-  case failedToCreateCacheFolder
-}
 
 /// An object providing the interface of a download resource which can be used with the `ResourceDownloader`.
 /// This provides a generic multi-purpose way of downloading any files.
@@ -21,11 +17,6 @@ public protocol DownloadResourceInterface: Sendable {
 }
 
 extension DownloadResourceInterface {
-  /// The directory to which we should store all the dowloaded files into
-  private static var cacheFolderDirectory: FileManager.SearchPathDirectory {
-    return FileManager.SearchPathDirectory.applicationSupportDirectory
-  }
-
   /// The name of the etag save into the cache folder
   var etagFileName: String {
     return [cacheFileName, "etag"].joined(separator: ".")
@@ -66,11 +57,17 @@ extension DownloadResourceInterface {
   ///
   /// - Note: Returns nil if the cache folder does not exist
   var createdCacheFolderURL: URL? {
-    guard let folderURL = Self.cacheFolderDirectory.url else { return nil }
-    let cacheFolderURL = folderURL.appendingPathComponent(cacheFolderName)
+    guard
+      let folderURL = try? AsyncFileManager.default.url(
+        for: .cachesDirectory,
+        in: .userDomainMask
+      ).appending(path: cacheFolderName)
+    else {
+      return nil
+    }
 
-    if FileManager.default.fileExists(atPath: cacheFolderURL.path) {
-      return cacheFolderURL
+    if FileManager.default.fileExists(atPath: folderURL.path) {
+      return folderURL
     } else {
       return nil
     }
@@ -136,16 +133,7 @@ extension DownloadResourceInterface {
   ///
   /// - Note: This technically can't really return nil as the location and folder are hard coded
   nonisolated func getOrCreateCacheFolder() async throws -> URL {
-    guard
-      let folderURL = FileManager.default.getOrCreateFolder(
-        name: cacheFolderName,
-        location: Self.cacheFolderDirectory
-      )
-    else {
-      throw ResourceFileError.failedToCreateCacheFolder
-    }
-
-    return folderURL
+    try await AsyncFileManager.default.url(for: .cachesDirectory, appending: cacheFolderName)
   }
 
   /// Get an object representing the cached download result.

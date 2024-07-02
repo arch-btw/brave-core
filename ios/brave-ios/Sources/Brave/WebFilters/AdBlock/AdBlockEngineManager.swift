@@ -4,6 +4,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import BraveCore
+import BraveShared
 import Data
 import Foundation
 import Preferences
@@ -11,11 +12,6 @@ import os
 
 /// A class for managing a single grouped engine
 @MainActor class AdBlockEngineManager {
-  /// The directory to which we should store the unified list into
-  private static var cacheFolderDirectory: FileManager.SearchPathDirectory {
-    return FileManager.SearchPathDirectory.cachesDirectory
-  }
-
   public struct FileInfo: Hashable, Equatable {
     let filterListInfo: GroupedAdBlockEngine.FilterListInfo
     let localFileURL: URL
@@ -50,7 +46,14 @@ import os
   ///
   /// - Note: Returns nil if the cache folder does not exist
   private var createdCacheFolderURL: URL? {
-    guard let folderURL = Self.cacheFolderDirectory.url else { return nil }
+    guard
+      let folderURL = try? AsyncFileManager.default.url(
+        for: .cachesDirectory,
+        in: .userDomainMask
+      )
+    else {
+      return nil
+    }
     let cacheFolderURL = folderURL.appendingPathComponent(
       Self.parentCacheFolderName,
       conformingTo: .folder
@@ -229,7 +232,7 @@ import os
     contentBlockerManager: ContentBlockerManager
   ) async throws {
     let engineType = self.engineType
-    let group = try combineRules(for: files)
+    let group = try await combineRules(for: files)
     self.pendingGroup = group
 
     ContentBlockerManager.log.debug(
@@ -270,16 +273,16 @@ import os
   }
 
   /// Take all the filter lists and combine them into one then save them into a cache folder.
-  private func combineRules(
+  nonisolated private func combineRules(
     for compilableFiles: [AdBlockEngineManager.FileInfo]
-  ) throws -> GroupedAdBlockEngine.FilterListGroup {
+  ) async throws -> GroupedAdBlockEngine.FilterListGroup {
     // 1. Create a file url
-    let cachedFolder = try getOrCreateCacheFolder()
+    let cachedFolder = try await getOrCreateCacheFolder()
     let fileURL = cachedFolder.appendingPathComponent("list.txt", conformingTo: .text)
     var compiledInfos: [GroupedAdBlockEngine.FilterListInfo] = []
     var unifiedRules = ""
     // 2. Join all the rules together
-    compilableFiles.forEach { fileInfo in
+    for fileInfo in compilableFiles {
       do {
         let fileContents = try String(contentsOf: fileInfo.localFileURL)
         compiledInfos.append(fileInfo.filterListInfo)
@@ -292,8 +295,8 @@ import os
     }
 
     // 3. Save the files into storage
-    if FileManager.default.fileExists(atPath: fileURL.path) {
-      try FileManager.default.removeItem(at: fileURL)
+    if await AsyncFileManager.default.fileExists(atPath: fileURL.path) {
+      try await AsyncFileManager.default.removeItem(at: fileURL)
     }
     try unifiedRules.write(to: fileURL, atomically: true, encoding: .utf8)
 
@@ -308,24 +311,18 @@ import os
   /// Get or create a cache folder for the given `Resource`
   ///
   /// - Note: This technically can't really return nil as the location and folder are hard coded
-  private func getOrCreateCacheFolder() throws -> URL {
-    guard
-      let folderURL = FileManager.default.getOrCreateFolder(
-        name: [Self.parentCacheFolderName, cacheFolderName].joined(separator: "/"),
-        location: Self.cacheFolderDirectory
-      )
-    else {
-      throw ResourceFileError.failedToCreateCacheFolder
-    }
-
-    return folderURL
+  private func getOrCreateCacheFolder() async throws -> URL {
+    try await AsyncFileManager.default.url(
+      for: .cachesDirectory,
+      appending: [Self.parentCacheFolderName, cacheFolderName].joined(separator: "/")
+    )
   }
 
   private func cache(engine: GroupedAdBlockEngine) async {
     let encoder = JSONEncoder()
 
     do {
-      let folderURL = try getOrCreateCacheFolder()
+      let folderURL = try await getOrCreateCacheFolder()
 
       // Write the serialized engine
       let serializedEngine = try await engine.serialize()
