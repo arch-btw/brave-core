@@ -12,7 +12,8 @@
 
 namespace brave_l10n {
 
-// See https://orpa.princeton.edu/export-controls/sanctioned-countries.
+// See https://orpa.princeton.edu/export-controls/sanctioned-countries. The
+// following list is derived from category 3.
 
 inline constexpr auto kOFACSactionedISO31661CountryCodes =
     base::MakeFixedFlatSet<std::string_view>({
@@ -22,37 +23,60 @@ inline constexpr auto kOFACSactionedISO31661CountryCodes =
         // Control (OFAC) License.
 
         // ISO 3166-1 alpha-2 country codes. See
-        // https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2.
+        // https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2 and
+        // https://en.wikipedia.org/wiki/XK_(user_assigned_code) for Kosovo.
+        "AL",  // Albania
+        "BA",  // Bosnia and Herzegovina
         "BY",  // Belarus
         "CU",  // Cuba
         "IR",  // Iran
         "KP",  // North Korea
         "MD",  // Moldova
+        "ME",  // Montenegro
+        "MK",  // North Macedonia
+        "RS",  // Serbia
         "RU",  // Russia
         "SY",  // Syria
         "UA",  // Ukraine (includes Crimea, Donetsk, and Luhansk regions)
+        "VE",  // Venezuela
+        "XK",  // Kosovo (user assigned code)
 
         // ISO 3166-1 alpha-3 country codes. See
-        // https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3.
+        // https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3 and
+        // https://en.wikipedia.org/wiki/XK_(user_assigned_code) for Kosovo.
+        "ALB",  // Albania
+        "BIH",  // Bosnia and Herzegovina
         "BLR",  // Belarus
         "CUB",  // Cuba
         "IRN",  // Iran
+        "KOR",  // North Korea
         "MDA",  // Moldova
-        "PRK",  // North Korea
+        "MNE",  // Montenegro
+        "MKD",  // North Macedonia
+        "SRB",  // Serbia
         "RUS",  // Russia
         "SYR",  // Syria
         "UKR",  // Ukraine (includes Crimea, Donetsk, and Luhansk regions)
+        "VEN",  // Venezuela
+        "XKX",  // Kosovo (user assigned code)
 
         // ISO 3166-1 numeric-3 country codes. See
         // https://en.wikipedia.org/wiki/ISO_3166-1_numeric.
+        "008",  // Albania
+        "070",  // Bosnia and Herzegovina
         "112",  // Belarus
         "192",  // Cuba
         "364",  // Iran
         "408",  // North Korea
         "498",  // Moldova
+        "499",  // Montenegro
+        "807",  // North Macedonia
+        "688",  // Serbia
         "643",  // Russia
         "760",  // Syria
-        "804"   // Ukraine (includes Crimea, Donetsk, and Luhansk regions)
+        "804",  // Ukraine (includes Crimea, Donetsk, and Luhansk regions)
+        "862",  // Venezuela
+        "900"   // Kosovo (user assigned code)
     });
 
 }  // namespace brave_l10n
