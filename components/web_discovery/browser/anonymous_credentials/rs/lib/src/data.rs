@@ -1,3 +1,8 @@
+// Copyright (c) 2024 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
+
 use brave_miracl::bn254::{
     big::{self, BIG},
     ecp::ECP,
@@ -207,10 +212,8 @@ impl UserCredentials {
         let mut result = [0u8; USER_CREDENTIALS_SIZE];
         self.a.tobytes(&mut result[..ECP_SIZE], false);
         self.b.tobytes(&mut result[ECP_SIZE..ECP_SIZE * 2], false);
-        self.c
-            .tobytes(&mut result[ECP_SIZE * 2..ECP_SIZE * 3], false);
-        self.d
-            .tobytes(&mut result[ECP_SIZE * 3..ECP_SIZE * 4], false);
+        self.c.tobytes(&mut result[ECP_SIZE * 2..ECP_SIZE * 3], false);
+        self.d.tobytes(&mut result[ECP_SIZE * 3..ECP_SIZE * 4], false);
         result
     }
 }
@@ -244,12 +247,9 @@ impl Signature {
         let mut result = [0u8; SIGNATURE_SIZE];
         self.a.tobytes(&mut result[..ECP_SIZE], false);
         self.b.tobytes(&mut result[ECP_SIZE..ECP_SIZE * 2], false);
-        self.c
-            .tobytes(&mut result[ECP_SIZE * 2..ECP_SIZE * 3], false);
-        self.d
-            .tobytes(&mut result[ECP_SIZE * 3..ECP_SIZE * 4], false);
-        self.nym
-            .tobytes(&mut result[ECP_SIZE * 4..ECP_SIZE * 5], false);
+        self.c.tobytes(&mut result[ECP_SIZE * 2..ECP_SIZE * 3], false);
+        self.d.tobytes(&mut result[ECP_SIZE * 3..ECP_SIZE * 4], false);
+        self.nym.tobytes(&mut result[ECP_SIZE * 4..ECP_SIZE * 5], false);
         result[ECP_SIZE * 5..].copy_from_slice(&self.proof.to_bytes());
         result
     }

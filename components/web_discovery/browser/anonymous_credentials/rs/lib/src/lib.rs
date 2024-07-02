@@ -1,3 +1,8 @@
+// Copyright (c) 2024 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! Partial implementation of Direct Anonymous Attestation (DAA) for the Web Discovery Project.
 //! Only signer functions are available. Performs the same elliptic curve operations as the [original C library](https://github.com/whotracksme/anonymous-credentials).
 //!
@@ -63,10 +68,7 @@ impl CredentialManager {
 
         rng.seed(entropy.len(), entropy);
 
-        Self {
-            rng,
-            gsk_and_credentials: None,
-        }
+        Self { rng, gsk_and_credentials: None }
     }
 
     /// Creates a "join" requests to be sent to the credential issuer,
@@ -199,10 +201,7 @@ mod tests {
         .try_into()
         .unwrap();
 
-        let credentials = cm
-            .finish_join(&group_pub_key, &gsk, join_response)
-            .unwrap()
-            .to_bytes();
+        let credentials = cm.finish_join(&group_pub_key, &gsk, join_response).unwrap().to_bytes();
 
         assert_eq!(credentials.as_slice(), EXPECTED_CREDENTIALS.as_slice());
     }

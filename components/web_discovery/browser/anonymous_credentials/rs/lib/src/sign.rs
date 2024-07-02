@@ -1,3 +1,8 @@
+// Copyright (c) 2024 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
+
 use brave_miracl::{
     bn254::{big::BIG, ecp::ECP, pair::g1mul},
     rand::RAND,
@@ -57,12 +62,5 @@ pub fn sign(
     let msg_bsn_hash = hash256(&msg_bsn_hash_data);
 
     let proof = make_ecp_proof_equals(rng, &msg_bsn_hash, &b, &bsn_point, &d, &nym, &gsk.0);
-    Signature {
-        a,
-        b,
-        c,
-        d,
-        nym,
-        proof,
-    }
+    Signature { a, b, c, d, nym, proof }
 }

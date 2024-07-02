@@ -81,8 +81,12 @@ package = "constellation-cxx"
 path = "../../../components/challenge_bypass_ristretto/rust/cxx"
 package = "challenge-bypass-ristretto-cxx"
 
+[patch.crates-io.anonymous-credentials_v0_1]
+path = "../../../components/web_discovery/browser/anonymous_credentials/rs/lib"
+package = "anonymous-credentials"
+
 [patch.crates-io.anonymous-credentials-cxx_v0_1]
-path = "../../../components/web_discovery/browser/anonymous_credentials/rs"
+path = "../../../components/web_discovery/browser/anonymous_credentials/rs/cxx"
 package = "anonymous-credentials-cxx"
 
 [patch.crates-io.document-extractor_v0_1]
