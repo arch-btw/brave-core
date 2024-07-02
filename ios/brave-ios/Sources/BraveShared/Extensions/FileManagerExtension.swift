@@ -183,4 +183,3 @@ extension FileManager.SearchPathDirectory {
     return FileManager.default.urls(for: self, in: .userDomainMask).first
   }
 }
-

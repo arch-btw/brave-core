@@ -242,7 +242,7 @@ struct FilterListsView: View {
 
         // 3. Remove the files
         do {
-          try removedURL.setting.resource.removeCacheFolder()
+          try await removedURL.setting.resource.removeCacheFolder()
         } catch {
           ContentBlockerManager.log.error(
             "Failed to remove file for resource \(removedURL.setting.uuid)"

@@ -57,12 +57,12 @@ import WebKit
     self.filterListsURLs = []
   }
 
-  func loadCachedFilterLists() {
+  func loadCachedFilterLists() async {
     let settings = CustomFilterListSetting.loadAllSettings(fromMemory: !persistChanges)
 
-    self.filterListsURLs = settings.map { setting in
+    self.filterListsURLs = await settings.asyncMap { setting in
       let resource = setting.resource
-      let date = try? resource.creationDate()
+      let date = try? await resource.creationDate()
 
       if let date = date {
         return FilterListCustomURL(setting: setting, downloadStatus: .downloaded(date))

@@ -79,7 +79,7 @@ extension DownloadResourceInterface {
   /// Load the data for this resource
   ///
   /// - Note: Return nil if the data does not exist
-  func downloadedData() throws -> Data? {
+  nonisolated func downloadedData() async throws -> Data? {
     guard let fileUrl = downloadedFileURL else { return nil }
     return FileManager.default.contents(atPath: fileUrl.path)
   }
@@ -87,15 +87,15 @@ extension DownloadResourceInterface {
   /// Load the string for this resource.
   ///
   /// - Note: Return nil if the data does not exist or if the file is not in the correct encoding
-  func downloadedString(encoding: String.Encoding = .utf8) throws -> String? {
-    guard let data = try downloadedData() else { return nil }
+  nonisolated func downloadedString(encoding: String.Encoding = .utf8) async throws -> String? {
+    guard let data = try await downloadedData() else { return nil }
     return String(data: data, encoding: encoding)
   }
 
   /// Get a creation date for the downloaded file
   ///
   /// - Note: Return nil if the data does not exist
-  func creationDate() throws -> Date? {
+  nonisolated func creationDate() async throws -> Date? {
     guard let fileURL = downloadedFileURL else { return nil }
     let fileAttributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
     return fileAttributes[.creationDate] as? Date
@@ -104,14 +104,14 @@ extension DownloadResourceInterface {
   /// Get an existing etag for this resource..
   ///
   /// - Note: If no etag is created (i.e. the file is not downloaded) a nil is returned.
-  func createdEtag() throws -> String? {
+  nonisolated func createdEtag() async throws -> String? {
     guard let fileURL = createdEtagURL else { return nil }
     guard let data = FileManager.default.contents(atPath: fileURL.path) else { return nil }
     return String(data: data, encoding: .utf8)
   }
 
   /// Removes file for the given `Resource`. The containing folder is not removed.
-  func removeFile() throws {
+  nonisolated func removeFile() async throws {
     guard
       let fileURL = downloadedFileURL
     else {
@@ -122,7 +122,7 @@ extension DownloadResourceInterface {
   }
 
   /// Removes all the data for the given `Resource`
-  func removeCacheFolder() throws {
+  nonisolated func removeCacheFolder() async throws {
     guard
       let folderURL = createdCacheFolderURL
     else {
@@ -135,7 +135,7 @@ extension DownloadResourceInterface {
   /// Get or create a cache folder for the given `Resource`
   ///
   /// - Note: This technically can't really return nil as the location and folder are hard coded
-  func getOrCreateCacheFolder() throws -> URL {
+  nonisolated func getOrCreateCacheFolder() async throws -> URL {
     guard
       let folderURL = FileManager.default.getOrCreateFolder(
         name: cacheFolderName,
@@ -150,9 +150,9 @@ extension DownloadResourceInterface {
 
   /// Get an object representing the cached download result.
   /// If nothing is downloaded, nil is returned.
-  func cachedResult() throws -> ResourceDownloader<Self>.DownloadResult? {
+  func cachedResult() async throws -> ResourceDownloader<Self>.DownloadResult? {
     guard let fileURL = downloadedFileURL else { return nil }
-    guard let creationDate = try creationDate() else { return nil }
+    guard let creationDate = try await creationDate() else { return nil }
     return ResourceDownloader<Self>.DownloadResult(
       date: creationDate,
       fileURL: fileURL,
