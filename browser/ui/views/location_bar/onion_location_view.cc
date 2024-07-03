@@ -46,7 +46,7 @@ namespace {
 constexpr SkColor kOpenInTorBg = SkColorSetRGB(0x8c, 0x30, 0xbb);
 constexpr SkColor kIconColor = SK_ColorWHITE;
 constexpr SkColor kTextColor = SK_ColorWHITE;
-constexpr int kFontSize = 18;
+constexpr int kFontHeight = 18;
 constexpr int kIconSize = 18;
 constexpr int kIconLabelSpacing = 4;
 constexpr int kCornerRadius = 8;
@@ -88,7 +88,7 @@ class OnionLocationButtonView : public views::LabelButton {
     SetEnabledTextColors(kTextColor);
     SetTextColor(views::Button::STATE_DISABLED, kTextColor);
     label()->SetFontList(
-        label()->font_list().DeriveWithHeightUpperBound(kFontSize));
+        label()->font_list().DeriveWithHeightUpperBound(kFontHeight));
 
     // Render vector icon
     SetImageModel(views::Button::STATE_NORMAL,
