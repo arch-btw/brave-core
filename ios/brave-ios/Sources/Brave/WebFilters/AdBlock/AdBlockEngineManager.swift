@@ -11,7 +11,7 @@ import os
 
 /// A class for managing a single grouped engine
 @MainActor class AdBlockEngineManager {
-  enum CompileTarget {
+  enum CompileTarget: Hashable {
     case engine, contentBlockers
     var combinedFileName: String {
       switch self {
@@ -230,13 +230,13 @@ import os
   ) async throws {
     let start = ContinuousClock().now
     let engineType = self.engineType
-    let group = try combineRules(for: files, target: .engine)
+    let group = try self.combineRules(for: files, target: .engine)
     self.pendingGroup = group
 
     ContentBlockerManager.log.debug(
       """
       Compiling `\(self.cacheFolderName)` engine from \(group.infos.count) sources:
-      \(group.debugDescription)
+      \(group.makeDebugDescription(for: engineType))
       """
     )
 
@@ -295,7 +295,7 @@ import os
       ContentBlockerManager.log.debug(
         """
         Compiling grouped Rule Lists for `\(self.engineType.debugDescription)` engine:
-        \(group.debugDescription)
+        \(group.makeDebugDescription(for: self.engineType))
         """
       )
       try await contentBlockerManager.compileRuleList(
@@ -307,7 +307,7 @@ import os
       ContentBlockerManager.log.debug(
         """
         Compiled grouped Rule Lists for `\(self.engineType.debugDescription)` engine (\(clock.now.formatted(since: start))):
-        \(group.debugDescription)
+        \(group.makeDebugDescription(for: self.engineType))
         """
       )
     } catch {
@@ -323,7 +323,7 @@ import os
     ContentBlockerManager.log.debug(
       """
       Set `\(self.cacheFolderName)` (\(group.fileType.debugDescription)) engine from \(group.infos.count) sources (\(ContinuousClock().now.formatted(since: start))):
-      \(group.debugDescription)
+      \(group.makeDebugDescription(for: self.engineType))
       """
     )
     self.engine = engine
@@ -334,17 +334,22 @@ import os
     for compilableFiles: [AdBlockEngineManager.FileInfo],
     target: CompileTarget
   ) throws -> GroupedAdBlockEngine.FilterListGroup {
-    // 1. Create a file url
+    // 1. Create a temporary file in the caches directory
     let cachedFolder = try getOrCreateCacheFolder()
-    let fileURL = cachedFolder.appendingPathComponent(target.combinedFileName)
+    let temporaryFileURL = cachedFolder.appendingPathComponent(
+      "combined-filter-list_\(UUID().uuidString).txt"
+    )
+    try "".write(to: temporaryFileURL, atomically: false, encoding: .utf8)
+    let fileWriteHandle = try FileHandle(forWritingTo: temporaryFileURL)
     var compiledInfos: [GroupedAdBlockEngine.FilterListInfo] = []
-    var unifiedRules = ""
-    // 2. Join all the rules together
+
+    // 2. Write all the rules to a temporary file
     compilableFiles.forEach { fileInfo in
       do {
-        let fileContents = try String(contentsOf: fileInfo.localFileURL)
+        let fileContents = try fileInfo.getRulesString(engineType: engineType)
+        guard let data = fileContents.data(using: .utf8) else { return }
+        try fileWriteHandle.write(contentsOf: data)
         compiledInfos.append(fileInfo.filterListInfo)
-        unifiedRules = [unifiedRules, fileContents].joined(separator: "\n")
       } catch {
         ContentBlockerManager.log.error(
           "Could not load rules for \(fileInfo.filterListInfo.debugDescription): \(error)"
@@ -353,10 +358,12 @@ import os
     }
 
     // 3. Save the files into storage
+    try fileWriteHandle.close()
+    let fileURL = cachedFolder.appendingPathComponent(target.combinedFileName)
     if FileManager.default.fileExists(atPath: fileURL.path) {
       try FileManager.default.removeItem(at: fileURL)
     }
-    try unifiedRules.write(to: fileURL, atomically: true, encoding: .utf8)
+    try FileManager.default.moveItem(at: temporaryFileURL, to: fileURL)
 
     // 4. Return a group containing info on this new file
     return GroupedAdBlockEngine.FilterListGroup(
@@ -475,5 +482,18 @@ extension CustomFilterListSetting {
 extension Array where Element == GroupedAdBlockEngine.FilterListInfo {
   var groupedVersion: String {
     return map { $0.version }.joined(separator: ",")
+  }
+}
+
+extension AdBlockEngineManager.FileInfo {
+  fileprivate func getRulesString(engineType: GroupedAdBlockEngine.EngineType) throws -> String {
+    let fileContents = try String(contentsOf: localFileURL)
+    if filterListInfo.source.onlyExceptions(for: engineType) {
+      let lines = fileContents.components(separatedBy: .newlines)
+        .filter({ $0.contains("@@") || $0.contains("@#@") })
+      return lines.joined(separator: "\n")
+    } else {
+      return fileContents
+    }
   }
 }
