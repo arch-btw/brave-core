@@ -238,6 +238,16 @@ base::Value::Dict NetworkInfoToValue(const mojom::NetworkInfo& chain) {
   return dict;
 }
 
+base::Value::Dict NetworkInfoToValueForSettings(
+    const mojom::NetworkInfo& info) {
+  auto dict = NetworkInfoToValue(info);
+  dict.Set("isKnown", info.props->is_known);
+  dict.Set("isCustom", info.props->is_custom);
+  dict.Set("isHidden", info.props->is_hidden);
+  dict.Set("isDappDefault", info.props->is_dapp_default);
+  return dict;
+}
+
 mojom::BlockchainTokenPtr ValueToBlockchainToken(
     const base::Value::Dict& value) {
   mojom::BlockchainTokenPtr token_ptr = mojom::BlockchainToken::New();

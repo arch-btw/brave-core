@@ -686,12 +686,6 @@ std::string JsonRpcService::GetChainIdSync(
   return network_manager_->GetCurrentChainId(coin, origin);
 }
 
-void JsonRpcService::GetDefaultChainId(
-    mojom::CoinType coin,
-    mojom::JsonRpcService::GetDefaultChainIdCallback callback) {
-  std::move(callback).Run(GetChainIdSync(coin, std::nullopt));
-}
-
 void JsonRpcService::GetChainIdForOrigin(
     mojom::CoinType coin,
     const ::url::Origin& origin,
@@ -703,50 +697,23 @@ void JsonRpcService::GetAllNetworks(GetAllNetworksCallback callback) {
   std::move(callback).Run(network_manager_->GetAllChains());
 }
 
-void JsonRpcService::GetCustomNetworks(mojom::CoinType coin,
-                                       GetCustomNetworksCallback callback) {
-  std::vector<std::string> chain_ids;
-  for (const auto& it : network_manager_->GetAllCustomChains(coin)) {
-    chain_ids.push_back(it->chain_id);
-  }
-  std::move(callback).Run(std::move(chain_ids));
-}
-
-void JsonRpcService::GetKnownNetworks(mojom::CoinType coin,
-                                      GetKnownNetworksCallback callback) {
-  std::vector<std::string> chain_ids;
-  for (const auto& it : network_manager_->GetAllKnownChains(coin)) {
-    chain_ids.push_back(it->chain_id);
-  }
-  std::move(callback).Run(std::move(chain_ids));
-}
-
-void JsonRpcService::GetHiddenNetworks(mojom::CoinType coin,
-                                       GetHiddenNetworksCallback callback) {
-  auto hidden_networks = network_manager_->GetHiddenNetworks(coin);
-
-  // Currently selected chain is never hidden for coin.
-  std::erase(hidden_networks,
-             base::ToLowerASCII(GetChainIdSync(coin, std::nullopt)));
-
-  std::move(callback).Run(hidden_networks);
-}
-
-void JsonRpcService::AddHiddenNetwork(mojom::CoinType coin,
+void JsonRpcService::SetNetworkHidden(mojom::CoinType coin,
                                       const std::string& chain_id,
-                                      AddHiddenNetworkCallback callback) {
-  network_manager_->AddHiddenNetwork(coin, chain_id);
+                                      bool hidden,
+                                      SetNetworkHiddenCallback callback) {
+  network_manager_->SetNetworkHidden(coin, chain_id, hidden);
 
   std::move(callback).Run(true);
 }
 
-void JsonRpcService::RemoveHiddenNetwork(mojom::CoinType coin,
-                                         const std::string& chain_id,
-                                         RemoveHiddenNetworkCallback callback) {
-  network_manager_->RemoveHiddenNetwork(coin, chain_id);
+// void JsonRpcService::RemoveHiddenNetwork(mojom::CoinType coin,
+//                                          const std::string& chain_id,
+//                                          RemoveHiddenNetworkCallback
+//                                          callback) {
+//   network_manager_->SetNetworkHidden(coin, chain_id);
 
-  std::move(callback).Run(true);
-}
+//   std::move(callback).Run(true);
+// }
 
 void JsonRpcService::GetBlockNumber(const std::string& chain_id,
                                     GetBlockNumberCallback callback) {

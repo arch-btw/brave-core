@@ -224,39 +224,12 @@ void BraveWalletHandler::ResetChain(const base::Value::List& args) {
 }
 
 void BraveWalletHandler::GetNetworksList(const base::Value::List& args) {
-  CHECK_EQ(args.size(), 2U);
+  CHECK_EQ(args.size(), 1U);
   base::Value::Dict result;
-  auto coin = ToCoinType(args[1].GetIfInt());
-  if (!coin) {
-    ResolveJavascriptCallback(args[0], base::Value());
-    return;
-  }
-
-  result.Set("defaultNetwork",
-             GetNetworkManager()->GetCurrentChainId(*coin, std::nullopt));
 
   auto& networks = result.Set("networks", base::Value::List())->GetList();
   for (const auto& it : GetNetworkManager()->GetAllChains()) {
-    if (it->coin == coin) {
-      networks.Append(brave_wallet::NetworkInfoToValue(*it));
-    }
-  }
-  auto& known_networks =
-      result.Set("knownNetworks", base::Value::List())->GetList();
-  for (const auto& it : GetNetworkManager()->GetAllKnownChains(*coin)) {
-    known_networks.Append(it->chain_id);
-  }
-
-  auto& custom_networks =
-      result.Set("customNetworks", base::Value::List())->GetList();
-  for (const auto& it : GetNetworkManager()->GetAllCustomChains(*coin)) {
-    custom_networks.Append(it->chain_id);
-  }
-
-  auto& hidden_networks =
-      result.Set("hiddenNetworks", base::Value::List())->GetList();
-  for (const auto& it : GetNetworkManager()->GetHiddenNetworks(*coin)) {
-    hidden_networks.Append(it);
+    networks.Append(brave_wallet::NetworkInfoToValueForSettings(*it));
   }
 
   AllowJavascript();
@@ -351,7 +324,7 @@ void BraveWalletHandler::AddHiddenNetwork(const base::Value::List& args) {
     return;
   }
 
-  GetNetworkManager()->AddHiddenNetwork(*coin, *chain_id);
+  GetNetworkManager()->SetNetworkHidden(*coin, *chain_id, true);
   ResolveJavascriptCallback(args[0], base::Value(true));
 }
 
@@ -365,7 +338,7 @@ void BraveWalletHandler::RemoveHiddenNetwork(const base::Value::List& args) {
   }
 
   AllowJavascript();
-  GetNetworkManager()->RemoveHiddenNetwork(*coin, *chain_id);
+  GetNetworkManager()->SetNetworkHidden(*coin, *chain_id, false);
   ResolveJavascriptCallback(args[0], base::Value(true));
 }
 

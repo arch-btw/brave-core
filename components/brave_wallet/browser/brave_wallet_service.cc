@@ -715,31 +715,6 @@ void BraveWalletService::ResetWebSitePermission(
   delegate_->ResetWebSitePermission(coin, formed_website, std::move(callback));
 }
 
-// static
-void BraveWalletService::MigrateHiddenNetworks(PrefService* prefs) {
-  auto previous_version_code =
-      prefs->GetInteger(kBraveWalletDefaultHiddenNetworksVersion);
-  if (previous_version_code >= 1) {
-    return;
-  }
-  {
-    // Default hidden networks
-    ScopedDictPrefUpdate update(prefs, kBraveWalletHiddenNetworks);
-    auto& hidden_networks_pref = update.Get();
-    base::Value::List* hidden_eth_networks =
-        hidden_networks_pref.EnsureList(kEthereumPrefKey);
-
-    auto value = base::Value(mojom::kFilecoinEthereumTestnetChainId);
-    if (std::find_if(hidden_eth_networks->begin(), hidden_eth_networks->end(),
-                     [&value](auto& v) { return value == v; }) ==
-        hidden_eth_networks->end()) {
-      hidden_eth_networks->Append(std::move(value));
-    }
-  }
-
-  prefs->SetInteger(kBraveWalletDefaultHiddenNetworksVersion, 1);
-}
-
 bool ShouldMigrateRemovedPreloadedNetwork(PrefService* prefs,
                                           mojom::CoinType coin,
                                           const std::string& chain_id) {
@@ -786,7 +761,8 @@ void BraveWalletService::MigrateFantomMainnetAsCustomNetwork(
         {}, 0, {GURL("https://rpc.ftm.tools")}, "FTM", "Fantom", 18,
         mojom::CoinType::ETH,
         GetSupportedKeyringsForNetwork(mojom::CoinType::ETH,
-                                       mojom::kFantomMainnetChainId));
+                                       mojom::kFantomMainnetChainId),
+        mojom::NetworkProps::New());
     network_manager.AddCustomNetwork(network);
     network_manager.SetEip1559ForCustomChain(mojom::kFantomMainnetChainId,
                                              true);
