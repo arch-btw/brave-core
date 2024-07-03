@@ -114,8 +114,11 @@ import os
 
   /// Load the engine from cache so it can be ready during launch
   func loadFromCache(resourcesInfo: GroupedAdBlockEngine.ResourcesInfo?) async -> Bool {
+    guard let createdCacheFolderURL else { return false }
     do {
-      guard let cachedGroupInfo = loadCachedInfo() else { return false }
+      guard let cachedGroupInfo = await loadCachedInfo(cacheFolderURL: createdCacheFolderURL) else {
+        return false
+      }
 
       let engineType = self.engineType
       let groupedEngine = try await Task.detached(priority: .high) {
@@ -351,12 +354,15 @@ import os
     }
   }
 
-  private func loadCachedInfo() -> GroupedAdBlockEngine.FilterListGroup? {
-    guard let cacheFolderURL = createdCacheFolderURL else { return nil }
+  nonisolated private func loadCachedInfo(
+    cacheFolderURL: URL
+  ) async -> GroupedAdBlockEngine.FilterListGroup? {
     let cachedEngineURL = cacheFolderURL.appendingPathComponent("list.dat", conformingTo: .data)
-    guard FileManager.default.fileExists(atPath: cachedEngineURL.path) else { return nil }
+    guard await AsyncFileManager.default.fileExists(atPath: cachedEngineURL.path) else {
+      return nil
+    }
     let cachedInfoURL = cacheFolderURL.appendingPathComponent("engine_info", conformingTo: .json)
-    guard FileManager.default.fileExists(atPath: cachedInfoURL.path) else { return nil }
+    guard await AsyncFileManager.default.fileExists(atPath: cachedInfoURL.path) else { return nil }
     let decoder = JSONDecoder()
 
     do {

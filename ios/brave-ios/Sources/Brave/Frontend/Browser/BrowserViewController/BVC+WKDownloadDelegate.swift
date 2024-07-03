@@ -69,7 +69,9 @@ extension BrowserViewController: WKDownloadDelegate {
       forceDownload: false,
       browserViewController: self
     ) {
-      passbookHelper.open()
+      Task {
+        await passbookHelper.open()
+      }
     }
 
     Task.detached {
