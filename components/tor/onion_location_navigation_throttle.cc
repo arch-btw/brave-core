@@ -28,8 +28,7 @@ bool GetOnionLocation(const net::HttpResponseHeaders* headers,
   onion_location->clear();
   constexpr const char kHeaderName[] = "onion-location";
 
-  if (!headers ||
-      !headers->EnumerateHeader(nullptr, kHeaderName, onion_location)) {
+  if (!headers || !headers->GetNormalizedHeader(kHeaderName, onion_location)) {
     return false;
   }
   return true;
