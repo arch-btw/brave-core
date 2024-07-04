@@ -1224,7 +1224,6 @@ void NetworkManager::SetEip1559ForCustomChain(const std::string& chain_id,
 }
 
 void NetworkManager::AddCustomNetwork(const mojom::NetworkInfo& chain) {
-  DCHECK(chain.props.Equals(mojom::NetworkProps::New()));
   ScopedDictPrefUpdate update(prefs_, kBraveWalletCustomNetworks);
   update->EnsureList(GetPrefKeyForCoinType(chain.coin))
       ->Append(NetworkInfoToValue(chain));
