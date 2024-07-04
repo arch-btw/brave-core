@@ -71,7 +71,7 @@ class SearchEnginesTests: XCTestCase {
     )
     let engines = SearchEngines()
     await engines.loadSearchEngines()
-    try! engines.addSearchEngine(testEngine)
+    try await engines.addSearchEngine(testEngine)
 
     XCTAssertEqual(engines.orderedEngines[1].engineID, testEngine.engineID)
 

@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import BraveShared
 import BraveWallet
 import Foundation
 import Shared
@@ -11,15 +12,16 @@ import WebKit
 public class IPFSSchemeHandler: InternalSchemeResponse {
   public static let path = "web3/ipfs"
 
-  public func response(forRequest request: URLRequest) -> (URLResponse, Data)? {
+  public func response(forRequest request: URLRequest) async -> (URLResponse, Data)? {
     guard let url = request.url else { return nil }
     let response = InternalSchemeHandler.response(forUrl: url)
-    guard let path = Bundle.module.path(forResource: "IPFSPreference", ofType: "html")
-    else {
+
+    guard let asset = Bundle.module.url(forResource: "IPFSPreference", withExtension: "html") else {
+      assert(false)
       return nil
     }
 
-    guard var html = try? String(contentsOfFile: path) else {
+    guard var html = await AsyncFileManager.default.utf8Contents(at: asset) else {
       assert(false)
       return nil
     }
@@ -42,10 +44,7 @@ public class IPFSSchemeHandler: InternalSchemeResponse {
       html = html.replacingOccurrences(of: "%\(arg)%", with: value)
     }
 
-    guard let data = html.data(using: .utf8) else {
-      return nil
-    }
-
+    let data = Data(html.utf8)
     return (response, data)
   }
 

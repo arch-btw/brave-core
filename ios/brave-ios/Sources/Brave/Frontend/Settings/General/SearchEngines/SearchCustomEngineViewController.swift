@@ -346,13 +346,15 @@ extension SearchCustomEngineViewController {
         return
       }
 
-      do {
-        try self.profile.searchEngines.addSearchEngine(engine)
-        self.cancel()
-      } catch {
-        self.handleError(error: SearchEngineError.failedToSave)
+      Task { @MainActor in
+        do {
+          try await self.profile.searchEngines.addSearchEngine(engine)
+          self.cancel()
+        } catch {
+          self.handleError(error: SearchEngineError.failedToSave)
 
-        self.changeAddButton(for: .disabled)
+          self.changeAddButton(for: .disabled)
+        }
       }
     }
 
@@ -465,13 +467,15 @@ extension SearchCustomEngineViewController {
 
         self.changeAddButton(for: .disabled)
       } else if let engine = engine {
-        do {
-          try self.profile.searchEngines.addSearchEngine(engine)
-          self.cancel()
-        } catch {
-          self.handleError(error: SearchEngineError.failedToSave)
+        Task { @MainActor in
+          do {
+            try await self.profile.searchEngines.addSearchEngine(engine)
+            self.cancel()
+          } catch {
+            self.handleError(error: SearchEngineError.failedToSave)
 
-          self.changeAddButton(for: .enabled)
+            self.changeAddButton(for: .enabled)
+          }
         }
       }
 

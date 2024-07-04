@@ -802,6 +802,47 @@ private class PlaylistFileDownloadManager: NSObject, URLSessionDownloadDelegate 
     }
   }
 
+  private func detectedFileExtension(
+    for downloadTask: URLSessionDownloadTask,
+    location: URL
+  ) async -> String? {
+    var detectedFileExtension: String?
+    guard let response = downloadTask.response as? HTTPURLResponse else {
+      return nil
+    }
+
+    // Detect based on File Extension.
+    if let url = downloadTask.originalRequest?.url,
+      let detectedExtension = PlaylistMimeTypeDetector(url: url).fileExtension
+    {
+      detectedFileExtension = detectedExtension
+    }
+
+    // Detect based on Content-Type header.
+    if detectedFileExtension == nil,
+      let contentType = response.value(forHTTPHeaderField: "Content-Type"),
+      let detectedExtension = PlaylistMimeTypeDetector(mimeType: contentType).fileExtension
+    {
+      detectedFileExtension = detectedExtension
+    }
+
+    // Detect based on Data.
+    if detectedFileExtension == nil {
+      do {
+        let data = try Data(contentsOf: location, options: .mappedIfSafe)
+        if let detectedExtension = PlaylistMimeTypeDetector(data: data).fileExtension {
+          detectedFileExtension = detectedExtension
+        }
+      } catch {
+        Logger.module.error(
+          "Error mapping downloaded playlist file to virtual memory: \(error.localizedDescription)"
+        )
+      }
+    }
+
+    return detectedFileExtension
+  }
+
   func urlSession(
     _ session: URLSession,
     downloadTask: URLSessionDownloadTask,
@@ -810,16 +851,16 @@ private class PlaylistFileDownloadManager: NSObject, URLSessionDownloadDelegate 
 
     guard let asset = activeDownloadTasks.removeValue(forKey: downloadTask) else { return }
 
-    func cleanupAndFailDownload(location: URL?, error: Error) {
+    @Sendable func cleanupAndFailDownload(location: URL?, error: Error) async {
       if let location = location {
         do {
-          try FileManager.default.removeItem(at: location)
+          try await AsyncFileManager.default.removeItem(at: location)
         } catch {
           Logger.module.error("Error Deleting Playlist Item: \(error.localizedDescription)")
         }
       }
 
-      DispatchQueue.main.async {
+      await MainActor.run {
         PlaylistItem.updateCache(uuid: asset.id, pageSrc: asset.pageSrc, cachedData: nil)
         self.delegate?.onDownloadStateChanged(
           streamDownloader: self,
@@ -834,82 +875,60 @@ private class PlaylistFileDownloadManager: NSObject, URLSessionDownloadDelegate 
     if let response = downloadTask.response as? HTTPURLResponse,
       response.statusCode == 302 || response.statusCode >= 200 && response.statusCode <= 299
     {
+      Task {
+        // Couldn't determine file type so we assume mp4 which is the most widely used container.
+        // If it doesn't work, the video/audio just won't play anyway.
+        var fileExtension = "mp4"
+        if let detectedFileExtension = await detectedFileExtension(
+          for: downloadTask,
+          location: location
+        ) {
+          fileExtension = detectedFileExtension
+        }
 
-      var detectedFileExtension: String?
-
-      // Detect based on File Extension.
-      if let url = downloadTask.originalRequest?.url,
-        let detectedExtension = PlaylistMimeTypeDetector(url: url).fileExtension
-      {
-        detectedFileExtension = detectedExtension
-      }
-
-      // Detect based on Content-Type header.
-      if detectedFileExtension == nil,
-        let contentType = response.value(forHTTPHeaderField: "Content-Type"),
-        let detectedExtension = PlaylistMimeTypeDetector(mimeType: contentType).fileExtension
-      {
-        detectedFileExtension = detectedExtension
-      }
-
-      // Detect based on Data.
-      if detectedFileExtension == nil {
         do {
-          let data = try Data(contentsOf: location, options: .mappedIfSafe)
-          if let detectedExtension = PlaylistMimeTypeDetector(data: data).fileExtension {
-            detectedFileExtension = detectedExtension
+          guard
+            let path = try PlaylistDownloadManager.uniqueDownloadPathForFilename(
+              asset.name + ".\(fileExtension)"
+            )
+          else {
+            Logger.module.error("Failed to create unique path for playlist item.")
+            throw PlaylistDownloadError.uniquePathNotCreated
+          }
+
+          try FileManager.default.moveItem(at: location, to: path)
+          do {
+            let cachedData = try path.bookmarkData()
+
+            DispatchQueue.main.async {
+              PlaylistItem.updateCache(
+                uuid: asset.id,
+                pageSrc: asset.pageSrc,
+                cachedData: cachedData
+              )
+              self.delegate?.onDownloadStateChanged(
+                streamDownloader: self,
+                id: asset.id,
+                state: .downloaded,
+                displayName: nil,
+                error: nil
+              )
+            }
+          } catch {
+            Logger.module.error("Failed to create bookmarkData for download URL.")
+            await cleanupAndFailDownload(location: path, error: error)
           }
         } catch {
           Logger.module.error(
-            "Error mapping downloaded playlist file to virtual memory: \(error.localizedDescription)"
+            "An error occurred attempting to download a playlist item: \(error.localizedDescription)"
           )
+          await cleanupAndFailDownload(location: location, error: error)
         }
-      }
-
-      // Couldn't determine file type so we assume mp4 which is the most widely used container.
-      // If it doesn't work, the video/audio just won't play anyway.
-
-      var fileExtension = "mp4"
-      if let detectedFileExtension = detectedFileExtension {
-        fileExtension = detectedFileExtension
-      }
-
-      do {
-        guard
-          let path = try PlaylistDownloadManager.uniqueDownloadPathForFilename(
-            asset.name + ".\(fileExtension)"
-          )
-        else {
-          Logger.module.error("Failed to create unique path for playlist item.")
-          throw PlaylistDownloadError.uniquePathNotCreated
-        }
-
-        try FileManager.default.moveItem(at: location, to: path)
-        do {
-          let cachedData = try path.bookmarkData()
-
-          DispatchQueue.main.async {
-            PlaylistItem.updateCache(uuid: asset.id, pageSrc: asset.pageSrc, cachedData: cachedData)
-            self.delegate?.onDownloadStateChanged(
-              streamDownloader: self,
-              id: asset.id,
-              state: .downloaded,
-              displayName: nil,
-              error: nil
-            )
-          }
-        } catch {
-          Logger.module.error("Failed to create bookmarkData for download URL.")
-          cleanupAndFailDownload(location: path, error: error)
-        }
-      } catch {
-        Logger.module.error(
-          "An error occurred attempting to download a playlist item: \(error.localizedDescription)"
-        )
-        cleanupAndFailDownload(location: location, error: error)
       }
     } else {
-      cleanupAndFailDownload(location: nil, error: URLError(.badServerResponse))
+      Task {
+        await cleanupAndFailDownload(location: nil, error: URLError(.badServerResponse))
+      }
     }
   }
 }

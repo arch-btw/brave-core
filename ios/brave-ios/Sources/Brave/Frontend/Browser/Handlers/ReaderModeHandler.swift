@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import BraveShared
 import Foundation
 import Shared
 import WebKit
@@ -17,7 +18,7 @@ public class ReaderModeHandler: InternalSchemeResponse {
     self.profile = profile
   }
 
-  public func response(forRequest request: URLRequest) -> (URLResponse, Data)? {
+  public func response(forRequest request: URLRequest) async -> (URLResponse, Data)? {
     guard let _url = request.url,
       let url = InternalURL(_url),
       let readerModeUrl = url.extractedUrlParam
@@ -172,38 +173,34 @@ public class ReaderModeHandler: InternalSchemeResponse {
         readerModeUrl,
         cache: ReaderModeHandler.readerModeCache
       )
-      if let readerViewLoadingPath = Bundle.module.path(
-        forResource: "ReaderViewLoading",
-        ofType: "html"
-      ) {
-        do {
-          var contents = try String(contentsOfFile: readerViewLoadingPath)
-          let mapping = [
-            "%ORIGINAL-URL%": readerModeUrl.absoluteString,
-            "%READER-URL%": url.url.absoluteString,
-            "%LOADING-TEXT%": Strings.readerModeLoadingContentDisplayText,
-            "%LOADING-FAILED-TEXT%": Strings.readerModePageCantShowDisplayText,
-            "%LOAD-ORIGINAL-TEXT%": Strings.readerModeLoadOriginalLinkText,
-          ]
+      if let asset = Bundle.module.url(forResource: "ReaderViewLoading", withExtension: "html"),
+        var contents = await AsyncFileManager.default.utf8Contents(at: asset)
+      {
+        let mapping = [
+          "%ORIGINAL-URL%": readerModeUrl.absoluteString,
+          "%READER-URL%": url.url.absoluteString,
+          "%LOADING-TEXT%": Strings.readerModeLoadingContentDisplayText,
+          "%LOADING-FAILED-TEXT%": Strings.readerModePageCantShowDisplayText,
+          "%LOAD-ORIGINAL-TEXT%": Strings.readerModeLoadOriginalLinkText,
+        ]
 
-          mapping.forEach {
-            contents = contents.replacingOccurrences(of: $0.key, with: $0.value)
-          }
+        mapping.forEach {
+          contents = contents.replacingOccurrences(of: $0.key, with: $0.value)
+        }
 
-          if let response = HTTPURLResponse(
+        guard
+          let response = HTTPURLResponse(
             url: url.url,
             statusCode: 200,
             httpVersion: "HTTP/1.1",
             headerFields: ["Content-Type": "text/html; charset=UTF-8"]
-          ),
-            let data = contents.data(using: .utf8)
-          {
-            return (response, data)
-          }
+          )
+        else {
           return nil
-        } catch {
-          assertionFailure("CANNOT LOAD  ReaderViewLoading.html: \(error)")
         }
+
+        let data = Data(contents.utf8)
+        return (response, data)
       }
     }
 

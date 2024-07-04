@@ -69,6 +69,7 @@ public class SearchEngines {
   }
 
   public func loadSearchEngines() async {
+    await loadCustomEngines()
     orderedEngines = await getOrderedEngines()
 
     recordSearchEngineP3A()
@@ -224,7 +225,7 @@ public class SearchEngines {
 
     customEngines.remove(at: customEngines.firstIndex(of: engine)!)
     do {
-      try saveCustomEngines()
+      try await saveCustomEngines()
     } catch {
       throw SearchEngineError.failedToSave
     }
@@ -233,7 +234,7 @@ public class SearchEngines {
   }
 
   /// Adds an engine to the front of the search engines list.
-  func addSearchEngine(_ engine: OpenSearchEngine) throws {
+  func addSearchEngine(_ engine: OpenSearchEngine) async throws {
     guard orderedEngines.contains(where: { $0.searchTemplate != engine.searchTemplate }) else {
       throw SearchEngineError.duplicate
     }
@@ -242,7 +243,7 @@ public class SearchEngines {
     orderedEngines.insert(engine, at: 1)
 
     do {
-      try saveCustomEngines()
+      try await saveCustomEngines()
     } catch {
       throw SearchEngineError.failedToSave
     }
@@ -282,24 +283,26 @@ public class SearchEngines {
       .path
   }
 
-  fileprivate lazy var customEngines: [OpenSearchEngine] = {
+  fileprivate var customEngines: [OpenSearchEngine] = []
+
+  private func loadCustomEngines() async {
     do {
       let data = try Data(contentsOf: URL(fileURLWithPath: customEngineFilePath()))
       let unarchiver = try NSKeyedUnarchiver(forReadingFrom: data)
       unarchiver.requiresSecureCoding = true
-      return unarchiver.decodeArrayOfObjects(
-        ofClass: OpenSearchEngine.self,
-        forKey: NSKeyedArchiveRootObjectKey
-      ) ?? []
+      customEngines =
+        unarchiver.decodeArrayOfObjects(
+          ofClass: OpenSearchEngine.self,
+          forKey: NSKeyedArchiveRootObjectKey
+        ) ?? []
     } catch {
       Logger.module.error(
         "Failed to load custom search engines: \(error.localizedDescription, privacy: .public)"
       )
-      return []
     }
-  }()
+  }
 
-  fileprivate func saveCustomEngines() throws {
+  fileprivate func saveCustomEngines() async throws {
     do {
       let data = try NSKeyedArchiver.archivedData(
         withRootObject: customEngines,
