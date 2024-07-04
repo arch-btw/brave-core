@@ -2807,7 +2807,7 @@ extension BrowserViewController: TabDelegate {
       forType: tab.isPrivate ? .privateMode : .standard
     )
 
-    guard let url = engine.searchURLForQuery(selectedText) else {
+    guard let url = engine?.searchURLForQuery(selectedText) else {
       assertionFailure("If this returns nil, investigate why and add proper handling or commenting")
       return
     }
@@ -3468,7 +3468,7 @@ extension BrowserViewController {
       }
     }
 
-    if let searchURL = engine.searchURLForQuery(
+    if let searchURL = engine?.searchURLForQuery(
       text,
       isBraveSearchPromotion: isBraveSearchPromotion
     ) {

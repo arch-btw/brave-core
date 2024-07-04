@@ -178,19 +178,20 @@ extension BrowserViewController {
     NetworkManager().downloadResource(with: url) { result in
       switch result {
       case .success(let response):
-        guard
-          let openSearchEngine = OpenSearchParser(pluginMode: true).parse(
-            response.data,
-            referenceURL: reference,
-            image: icon,
-            isCustomEngine: true
-          )
-        else {
-          return
+        Task { @MainActor in
+          guard
+            let openSearchEngine = await OpenSearchParser(pluginMode: true).parse(
+              response.data,
+              referenceURL: reference,
+              image: icon,
+              isCustomEngine: true
+            )
+          else {
+            return
+          }
+
+          self.addSearchEngine(openSearchEngine)
         }
-
-        self.addSearchEngine(openSearchEngine)
-
       case .failure(let error):
         Logger.module.error("\(error.localizedDescription)")
       }
