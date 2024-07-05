@@ -1505,7 +1505,7 @@ interface JsonRpcService {
     => (bool success);
   GetNetwork(CoinType coin, url.mojom.Origin? origin) => (NetworkInfo network);
   GetAllNetworks() => (array<NetworkInfo> networks);
-  SetNetworkHidden(CoinType coin, string chain_id, bool hidden) => (bool success);
+  SetNetworkHidden(CoinType coin, string chain_id, bool hidden);
 
   // Obtains the selected network's chain ID for origin.
   GetChainIdForOrigin(CoinType coin, url.mojom.Origin origin) => (string chain_id);

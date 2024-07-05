@@ -216,7 +216,7 @@ export const networkEndpoints = ({
             async (
               chain: Pick<BraveWallet.NetworkInfo, 'chainId' | 'coin'>
             ) => {
-              const { success } = await api.jsonRpcService.setNetworkHidden(
+               await api.jsonRpcService.setNetworkHidden(
                 chain.coin,
                 chain.chainId,
                 true
@@ -241,10 +241,6 @@ export const networkEndpoints = ({
                 LOCAL_STORAGE_KEYS.FILTERED_OUT_PORTFOLIO_NETWORK_KEYS,
                 JSON.stringify(newFilteredOutNetworkKeys)
               )
-
-              if (!success) {
-                throw new Error('jsonRpcService.addHiddenNetwork failed')
-              }
             }
           )
 
@@ -279,15 +275,11 @@ export const networkEndpoints = ({
             async (
               chain: Pick<BraveWallet.NetworkInfo, 'chainId' | 'coin'>
             ) => {
-              const { success } = await api.jsonRpcService.setNetworkHidden(
+              await api.jsonRpcService.setNetworkHidden(
                 chain.coin,
                 chain.chainId,
                 false
               )
-
-              if (!success) {
-                throw new Error('jsonRpcService.removeHiddenNetwork failed')
-              }
             }
           )
 

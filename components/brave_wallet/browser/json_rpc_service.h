@@ -265,8 +265,7 @@ class JsonRpcService : public mojom::JsonRpcService {
   void GetAllNetworks(GetAllNetworksCallback callback) override;
   void SetNetworkHidden(mojom::CoinType coin,
                         const std::string& chain_id,
-                        bool hidden,
-                        SetNetworkHiddenCallback callback) override;
+                        bool hidden) override;
 
   void AddObserver(
       ::mojo::PendingRemote<mojom::JsonRpcServiceObserver> observer) override;

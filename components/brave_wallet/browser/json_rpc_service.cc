@@ -699,21 +699,9 @@ void JsonRpcService::GetAllNetworks(GetAllNetworksCallback callback) {
 
 void JsonRpcService::SetNetworkHidden(mojom::CoinType coin,
                                       const std::string& chain_id,
-                                      bool hidden,
-                                      SetNetworkHiddenCallback callback) {
+                                      bool hidden) {
   network_manager_->SetNetworkHidden(coin, chain_id, hidden);
-
-  std::move(callback).Run(true);
 }
-
-// void JsonRpcService::RemoveHiddenNetwork(mojom::CoinType coin,
-//                                          const std::string& chain_id,
-//                                          RemoveHiddenNetworkCallback
-//                                          callback) {
-//   network_manager_->SetNetworkHidden(coin, chain_id);
-
-//   std::move(callback).Run(true);
-// }
 
 void JsonRpcService::GetBlockNumber(const std::string& chain_id,
                                     GetBlockNumberCallback callback) {
