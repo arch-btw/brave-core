@@ -57,7 +57,6 @@ class PublishersController {
   std::unique_ptr<base::OneShotEvent> on_current_update_complete_;
   std::string default_locale_;
   Publishers publishers_;
-  bool is_update_in_progress_ = false;
 };
 
 }  // namespace brave_news

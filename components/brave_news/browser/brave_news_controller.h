@@ -161,6 +161,10 @@ class BraveNewsController
   void Prefetch();
   void MaybeInitPrefs();
   void OnInitializingPrefsComplete();
+  void OnVerifiedDirectFeedUrl(const GURL& feed_url,
+                               SubscribeToNewDirectFeedCallback callback,
+                               bool is_valid,
+                               const std::string& feed_title);
 
   void NotifyPublishersChanged(mojom::PublishersEventPtr event);
   void NotifyChannelsChanged(mojom::ChannelsEventPtr event);

@@ -47,8 +47,14 @@ class BraveNewsEngine {
   void GetPublisherFeed(SubscriptionsSnapshot snapshot,
                         const std::string& publisher_id,
                         m::GetPublisherFeedCallback callback);
-  void EnsureFeedV2IsUpdating();
+  void EnsurePublishersIsUpdating(SubscriptionsSnapshot snapshot);
+  void EnsureFeedV2IsUpdating(SubscriptionsSnapshot snapshot);
   void GetFeedV2(SubscriptionsSnapshot snapshot, m::GetFeedV2Callback callback);
+  void IsFeedV1UpdateAvailable(SubscriptionsSnapshot snapshot,
+                               const std::string& displayed_hash,
+                               m::IsFeedUpdateAvailableCallback callback);
+  void CheckForFeedsUpdate(SubscriptionsSnapshot snapshot);
+  void PrefetchFeed(SubscriptionsSnapshot snapshot);
 
   void GetSignals(SubscriptionsSnapshot snapshot,
                   m::GetSignalsCallback callback);

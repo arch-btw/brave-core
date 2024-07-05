@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/feature_list.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
@@ -37,9 +38,12 @@ BraveNewsEngine::BraveNewsEngine(
                               &api_request_helper_,
                               nullptr) {
   DETACH_FROM_SEQUENCE(sequence_checker_);
+  sequence_checker_.EnableStackLogging();
 }
 
-BraveNewsEngine::~BraveNewsEngine() = default;
+BraveNewsEngine::~BraveNewsEngine() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+}
 
 void BraveNewsEngine::GetLocale(SubscriptionsSnapshot snapshot,
                                 m::GetLocaleCallback callback) {
@@ -62,6 +66,29 @@ void BraveNewsEngine::GetPublishers(SubscriptionsSnapshot snapshot,
   publishers_controller_.GetOrFetchPublishers(snapshot, std::move(callback));
 }
 
+void BraveNewsEngine::EnsurePublishersIsUpdating(
+    SubscriptionsSnapshot snapshot) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  publishers_controller_.EnsurePublishersIsUpdating(snapshot);
+}
+
+void BraveNewsEngine::EnsureFeedV2IsUpdating(SubscriptionsSnapshot snapshot) {
+  auto* builder = MaybeFeedV2Builder();
+  CHECK(builder);
+
+  builder->EnsureFeedIsUpdating(snapshot);
+}
+
+void BraveNewsEngine::IsFeedV1UpdateAvailable(
+    SubscriptionsSnapshot snapshot,
+    const std::string& displayed_hash,
+    m::IsFeedUpdateAvailableCallback callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  auto* builder = MaybeFeedV1Builder();
+  CHECK(builder);
+  builder->DoesFeedVersionDiffer(snapshot, displayed_hash, std::move(callback));
+}
+
 void BraveNewsEngine::GetChannels(SubscriptionsSnapshot snapshot,
                                   m::GetChannelsCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -78,6 +105,7 @@ void BraveNewsEngine::GetSuggestedPublisherIds(
 
 void BraveNewsEngine::GetFeed(SubscriptionsSnapshot snapshot,
                               m::GetFeedCallback callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto* builder = MaybeFeedV1Builder();
   CHECK(builder);
 
@@ -86,6 +114,7 @@ void BraveNewsEngine::GetFeed(SubscriptionsSnapshot snapshot,
 
 void BraveNewsEngine::GetFeedV2(SubscriptionsSnapshot snapshot,
                                 m::GetFeedV2Callback callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto* builder = MaybeFeedV2Builder();
   CHECK(builder);
 
@@ -94,6 +123,7 @@ void BraveNewsEngine::GetFeedV2(SubscriptionsSnapshot snapshot,
 
 void BraveNewsEngine::GetFollowingFeed(SubscriptionsSnapshot snapshot,
                                        m::GetFollowingFeedCallback callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto* builder = MaybeFeedV2Builder();
   CHECK(builder);
 
@@ -102,11 +132,47 @@ void BraveNewsEngine::GetFollowingFeed(SubscriptionsSnapshot snapshot,
 
 void BraveNewsEngine::GetChannelFeed(SubscriptionsSnapshot snapshot,
                                      const std::string& channel,
-                                     m::GetChannelFeedCallback callback) {
+                                     m::GetPublisherFeedCallback callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto* builder = MaybeFeedV2Builder();
   CHECK(builder);
 
   builder->BuildChannelFeed(snapshot, channel, std::move(callback));
+}
+
+void BraveNewsEngine::GetPublisherFeed(SubscriptionsSnapshot snapshot,
+                                       const std::string& publisher_id,
+                                       m::GetPublisherFeedCallback callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  auto* builder = MaybeFeedV2Builder();
+  CHECK(builder);
+
+  builder->BuildPublisherFeed(snapshot, publisher_id, std::move(callback));
+}
+
+void BraveNewsEngine::CheckForFeedsUpdate(SubscriptionsSnapshot snapshot) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (MaybeFeedV2Builder()) {
+    EnsureFeedV2IsUpdating(snapshot);
+    return;
+  }
+
+  auto* builder = MaybeFeedV1Builder();
+  CHECK(builder);
+
+  builder->UpdateIfRemoteChanged(snapshot);
+}
+
+void BraveNewsEngine::PrefetchFeed(SubscriptionsSnapshot snapshot) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (auto* builder = MaybeFeedV2Builder()) {
+    builder->BuildAllFeed(snapshot, base::DoNothing());
+    return;
+  }
+
+  auto* builder = MaybeFeedV1Builder();
+  CHECK(builder);
+  builder->EnsureFeedIsCached(snapshot);
 }
 
 FeedV2Builder* BraveNewsEngine::MaybeFeedV2Builder() {
@@ -140,6 +206,7 @@ FeedController* BraveNewsEngine::MaybeFeedV1Builder() {
 }
 
 base::WeakPtr<BraveNewsEngine> BraveNewsEngine::GetWeakPtr() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return weak_ptr_factory_.GetWeakPtr();
 }
 

@@ -26,6 +26,8 @@
 #include "base/one_shot_event.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "brave/components/api_request_helper/api_request_helper.h"
@@ -85,18 +87,19 @@ mojo::StructPtr<EventType> CreateChangeEvent(
 
 }  // namespace
 
-#define IN_ENGINE(Method, CB, ...)                                    \
-  task_runner_->PostTask(                                             \
-      FROM_HERE,                                                      \
-      base::BindOnce(&BraveNewsEngine::Method, engine_->GetWeakPtr(), \
-                     pref_manager_.GetSubscriptions(), __VA_ARGS__,   \
-                     base::BindPostTaskToCurrentDefault(CB)))
+#define IN_ENGINE(Method, CB, ...)                                \
+  task_runner_->PostTask(                                         \
+      FROM_HERE, base::BindOnce(&BraveNewsEngine::Method,         \
+                                base::Unretained(engine_.get()),  \
+                                pref_manager_.GetSubscriptions(), \
+                                __VA_ARGS__ __VA_OPT__(, )        \
+                                    base::BindPostTaskToCurrentDefault(CB)))
 
-#define IN_ENGINE_FF(Method)                                          \
-  task_runner_->PostTask(                                             \
-      FROM_HERE,                                                      \
-      base::BindOnce(&BraveNewsEngine::Method, engine_->GetWeakPtr(), \
-                     pref_manager_.GetSubscriptions()))
+#define IN_ENGINE_FF(Method)                                             \
+  task_runner_->PostTask(FROM_HERE,                                      \
+                         base::BindOnce(&BraveNewsEngine::Method,        \
+                                        base::Unretained(engine_.get()), \
+                                        pref_manager_.GetSubscriptions()))
 
 BraveNewsController::BraveNewsController(
     PrefService* prefs,
@@ -114,7 +117,20 @@ BraveNewsController::BraveNewsController(
       pref_manager_(*prefs),
       news_metrics_(prefs, pref_manager_),
       direct_feed_controller_(url_loader_factory),
-      initialization_promise_(3, pref_manager_, publishers_controller_),
+      task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
+          {base::TaskPriority::BEST_EFFORT,
+           base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN})),
+      engine_(std::unique_ptr<BraveNewsEngine, base::OnTaskRunnerDeleter>(
+          new BraveNewsEngine(url_loader_factory->Clone()),
+          base::OnTaskRunnerDeleter(task_runner_))),
+      initialization_promise_(
+          3,
+          pref_manager_,
+          base::BindRepeating(
+              &BraveNewsController::GetLocale,
+              // Unretained is safe here because |initialization_promise_| is
+              // owned by BraveNewsController.
+              base::Unretained(this))),
       weak_ptr_factory_(this) {
   DCHECK(prefs);
   net::NetworkChangeNotifier::AddNetworkChangeObserver(this);
@@ -191,19 +207,10 @@ void BraveNewsController::GetPublisherFeed(const std::string& publisher_id,
 }
 
 void BraveNewsController::EnsureFeedV2IsUpdating() {
-  if (!MaybeInitFeedV2()) {
-    return;
-  }
-
   IN_ENGINE_FF(EnsureFeedV2IsUpdating);
 }
 
 void BraveNewsController::GetFeedV2(GetFeedV2Callback callback) {
-  if (!MaybeInitFeedV2()) {
-    std::move(callback).Run(mojom::FeedV2::New());
-    return;
-  }
-
   // If we're only recently opted-in but we haven't yet finished adding the
   // top sources subscription (via the async functions in MaybeInitPrefs), we
   // need to wait for that to complete before we can fetch the feed.
@@ -214,7 +221,7 @@ void BraveNewsController::GetFeedV2(GetFeedV2Callback callback) {
     return;
   }
 
-  IN_ENGINE(BuildAllFeed, std::move(callback));
+  IN_ENGINE(GetFeedV2, std::move(callback));
 }
 
 void BraveNewsController::GetSignals(GetSignalsCallback callback) {
@@ -328,54 +335,51 @@ void BraveNewsController::SubscribeToNewDirectFeed(
   }
   direct_feed_controller_.VerifyFeedUrl(
       feed_url,
+      base::BindOnce(&BraveNewsController::OnVerifiedDirectFeedUrl,
+                     base::Unretained(this), feed_url, std::move(callback)));
+}
+
+void BraveNewsController::OnVerifiedDirectFeedUrl(
+    const GURL& feed_url,
+    SubscribeToNewDirectFeedCallback callback,
+    const bool is_valid,
+    const std::string& feed_title) {
+  VLOG(1) << "Is new feed valid? " << is_valid << " Title: " << feed_title;
+  if (!is_valid) {
+    std::move(callback).Run(false, false, std::nullopt);
+    return;
+  }
+
+  pref_manager_.AddDirectPublisher(feed_url, feed_title);
+
+  auto direct_feed_config = pref_manager_.GetSubscriptions().direct_feeds();
+  std::vector<mojom::PublisherPtr> direct_feeds;
+
+  ParseDirectPublisherList(direct_feed_config, &direct_feeds);
+  auto event = mojom::PublishersEvent::New();
+  for (auto& feed : direct_feeds) {
+    auto publisher_id = feed->publisher_id;
+    event->addedOrUpdated[publisher_id] = std::move(feed);
+  }
+
+  for (const auto& listener : publishers_listeners_) {
+    listener->Changed(event->Clone());
+  }
+
+  // Mark feed as requiring update
+  // TODO(petemill): expose function to mark direct feeds as dirty
+  // and not require re-download of sources.json
+  IN_ENGINE_FF(EnsurePublishersIsUpdating);
+
+  // Pass publishers to callback, waiting for updated publishers list
+  IN_ENGINE(
+      GetPublishers,
       base::BindOnce(
-          [](const GURL& feed_url, SubscribeToNewDirectFeedCallback callback,
-             BraveNewsController* controller, const bool is_valid,
-             const std::string& feed_title) {
-            VLOG(1) << "Is new feed valid? " << is_valid
-                    << " Title: " << feed_title;
-            if (!is_valid) {
-              std::move(callback).Run(false, false, std::nullopt);
-              return;
-            }
-
-            controller->pref_manager_.AddDirectPublisher(feed_url, feed_title);
-
-            auto direct_feed_config =
-                controller->pref_manager_.GetSubscriptions().direct_feeds();
-            std::vector<mojom::PublisherPtr> direct_feeds;
-
-            ParseDirectPublisherList(direct_feed_config, &direct_feeds);
-            auto event = mojom::PublishersEvent::New();
-            for (auto& feed : direct_feeds) {
-              auto publisher_id = feed->publisher_id;
-              event->addedOrUpdated[publisher_id] = std::move(feed);
-            }
-
-            for (const auto& listener : controller->publishers_listeners_) {
-              listener->Changed(event->Clone());
-            }
-
-            // Mark feed as requiring update
-            // TODO(petemill): expose function to mark direct feeds as dirty
-            // and not require re-download of sources.json
-            auto subscriptions = controller->pref_manager_.GetSubscriptions();
-            controller->publishers_controller_.EnsurePublishersIsUpdating(
-                subscriptions);
-            // Pass publishers to callback, waiting for updated publishers list
-            controller->publishers_controller_.GetOrFetchPublishers(
-                subscriptions,
-                base::BindOnce(
-                    [](SubscribeToNewDirectFeedCallback callback,
-                       Publishers publishers) {
-                      std::move(callback).Run(
-                          true, false,
-                          std::optional<Publishers>(std::move(publishers)));
-                    },
-                    std::move(callback)),
-                true);
+          [](SubscribeToNewDirectFeedCallback callback, Publishers publishers) {
+            std::move(callback).Run(
+                true, false, std::optional<Publishers>(std::move(publishers)));
           },
-          feed_url, std::move(callback), base::Unretained(this)));
+          std::move(callback)));
 }
 
 void BraveNewsController::RemoveDirectFeed(const std::string& publisher_id) {
@@ -383,8 +387,7 @@ void BraveNewsController::RemoveDirectFeed(const std::string& publisher_id) {
                                        mojom::UserEnabled::DISABLED);
 
   // Mark feed as requiring update
-  publishers_controller_.EnsurePublishersIsUpdating(
-      pref_manager_.GetSubscriptions());
+  IN_ENGINE_FF(EnsurePublishersIsUpdating);
 
   for (const auto& receiver : publishers_listeners_) {
     auto event = mojom::PublishersEvent::New();
@@ -515,18 +518,17 @@ void BraveNewsController::ClearPrefs() {
 void BraveNewsController::IsFeedUpdateAvailable(
     const std::string& displayed_feed_hash,
     IsFeedUpdateAvailableCallback callback) {
-  feed_controller_.DoesFeedVersionDiffer(pref_manager_.GetSubscriptions(),
-                                         displayed_feed_hash,
-                                         std::move(callback));
+  IN_ENGINE(IsFeedV1UpdateAvailable, std::move(callback), displayed_feed_hash);
 }
 
 void BraveNewsController::AddFeedListener(
     mojo::PendingRemote<mojom::FeedListener> listener) {
-  if (MaybeInitFeedV2()) {
-    feed_v2_builder_->AddListener(std::move(listener));
-  } else {
-    feed_controller_.AddListener(std::move(listener));
-  }
+  // TODO: Handle FeedListeners:
+  // if (MaybeInitFeedV2()) {
+  //   feed_v2_builder_->AddListener(std::move(listener));
+  // } else {
+  //   feed_controller_.AddListener(std::move(listener));
+  // }
 }
 void BraveNewsController::SetConfiguration(
     mojom::ConfigurationPtr configuration,
@@ -681,27 +683,22 @@ void BraveNewsController::CheckForPublishersUpdate() {
   if (!pref_manager_.IsEnabled()) {
     return;
   }
-  publishers_controller_.EnsurePublishersIsUpdating(
-      pref_manager_.GetSubscriptions());
+
+  IN_ENGINE_FF(EnsurePublishersIsUpdating);
 }
 
 void BraveNewsController::CheckForFeedsUpdate() {
   if (!pref_manager_.IsEnabled()) {
     return;
   }
-  feed_controller_.UpdateIfRemoteChanged(pref_manager_.GetSubscriptions());
-  EnsureFeedV2IsUpdating();
+
+  IN_ENGINE_FF(CheckForFeedsUpdate);
 }
 
 void BraveNewsController::Prefetch() {
   VLOG(1) << "PREFETCHING: ensuring feed has been retrieved";
 
-  if (MaybeInitFeedV2()) {
-    feed_v2_builder_->BuildAllFeed(pref_manager_.GetSubscriptions(),
-                                   base::DoNothing());
-  } else {
-    feed_controller_.EnsureFeedIsCached(pref_manager_.GetSubscriptions());
-  }
+  IN_ENGINE_FF(PrefetchFeed);
 }
 
 void BraveNewsController::ConditionallyStartOrStopTimer() {
@@ -760,9 +757,11 @@ void BraveNewsController::ConditionallyStartOrStopTimer() {
     timer_publishers_update_.Stop();
     timer_prefetch_.Stop();
     VLOG(1) << "REMOVING DATA FROM MEMORY";
-    feed_controller_.ClearCache();
-    publishers_controller_.ClearCache();
-    feed_v2_builder_ = nullptr;
+
+    // Reset our engine so all the caches are deleted.
+    engine_ = std::unique_ptr<BraveNewsEngine, base::OnTaskRunnerDeleter>(
+        new BraveNewsEngine(url_loader_factory_->Clone()),
+        base::OnTaskRunnerDeleter(task_runner_));
   }
 }
 
@@ -800,8 +799,7 @@ void BraveNewsController::OnNetworkChanged(
 
   // Ensure publishers are fetched (this won't do anything if they are). This
   // handles the case where Brave News is started with no network.
-  publishers_controller_.GetOrFetchPublishers(pref_manager_.GetSubscriptions(),
-                                              base::DoNothing());
+  IN_ENGINE_FF(EnsurePublishersIsUpdating);
 }
 
 void BraveNewsController::OnConfigChanged() {
@@ -830,11 +828,10 @@ void BraveNewsController::OnPublishersChanged() {
                                weak_ptr_factory_.GetWeakPtr())));
 
   // When publishers are changed, see if it affects the feed.
-  if (MaybeInitFeedV2()) {
-    feed_v2_builder_->RecheckFeedHash(last_subscriptions_);
-  } else {
-    feed_controller_.EnsureFeedIsUpdating(pref_manager_.GetSubscriptions());
-  }
+
+  // TODO: We should fire a callback if an update is available to notify
+  // listeners.
+  IN_ENGINE_FF(CheckForFeedsUpdate);
 }
 
 void BraveNewsController::NotifyPublishersChanged(
@@ -851,7 +848,6 @@ void BraveNewsController::OnChannelsChanged() {
     auto diff = subscriptions.DiffChannels(last_subscriptions_);
     last_subscriptions_ = std::move(subscriptions);
 
-    feed_controller_.EnsureFeedIsUpdating(last_subscriptions_);
     GetChannels(
         base::BindOnce(
             &CreateChangeEvent<mojom::ChannelPtr, mojom::ChannelsEvent>,
@@ -860,9 +856,9 @@ void BraveNewsController::OnChannelsChanged() {
                                  weak_ptr_factory_.GetWeakPtr())));
 
     // When channels are changed, see if it affects the feed.
-    if (MaybeInitFeedV2()) {
-      feed_v2_builder_->RecheckFeedHash(last_subscriptions_);
-    }
+    // TODO: We should fire a callback if an update is available, and notify
+    // listeners.
+    IN_ENGINE_FF(CheckForFeedsUpdate);
   } else {
     VLOG(1) << "OnChannelsChanged: News not enabled, doing nothing.";
   }

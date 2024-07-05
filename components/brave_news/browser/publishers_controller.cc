@@ -104,8 +104,7 @@ void ApplySubscriptions(Publishers& publishers,
 
 PublishersController::PublishersController(
     api_request_helper::APIRequestHelper* api_request_helper)
-    : api_request_helper_(api_request_helper),
-      on_current_update_complete_(new base::OneShotEvent()) {}
+    : api_request_helper_(api_request_helper) {}
 
 PublishersController::~PublishersController() = default;
 
@@ -176,16 +175,17 @@ void PublishersController::GetOrFetchPublishers(
   // Also don't wait if there's an update in progress and this caller
   // wishes to wait.
   if (!publishers_.empty() &&
-      (!wait_for_current_update || !is_update_in_progress_)) {
+      (!wait_for_current_update || !on_current_update_complete_)) {
     // Make sure the subscriptions are up to date.
     ApplySubscriptions(publishers_, subscriptions);
     std::move(callback).Run();
     return;
   }
+
   // Ensure data is currently being fetched and subscribe to know
   // when that is complete.
-  on_current_update_complete_->Post(FROM_HERE, std::move(callback));
   EnsurePublishersIsUpdating(subscriptions);
+  on_current_update_complete_->Post(FROM_HERE, std::move(callback));
 }
 
 void PublishersController::GetLocale(
@@ -210,10 +210,10 @@ void PublishersController::EnsurePublishersIsUpdating(
     const SubscriptionsSnapshot& subscriptions) {
   // Only 1 update at a time, other calls for data will wait for
   // the current operation via the `on_current_update_complete_` OneShotEvent.
-  if (is_update_in_progress_) {
+  if (on_current_update_complete_) {
     return;
   }
-  is_update_in_progress_ = true;
+  on_current_update_complete_ = std::make_unique<base::OneShotEvent>();
 
   GURL sources_url(
       base::StrCat({"https://", brave_news::GetHostname(), "/sources.",
@@ -235,9 +235,7 @@ void PublishersController::EnsurePublishersIsUpdating(
         // Update failed, we'll just reuse whatever publishers we had before.
         if (!publisher_list) {
           controller->on_current_update_complete_->Signal();
-          controller->is_update_in_progress_ = false;
-          controller->on_current_update_complete_ =
-              std::make_unique<base::OneShotEvent>();
+          controller->on_current_update_complete_.reset();
           return;
         }
 
@@ -250,9 +248,7 @@ void PublishersController::EnsurePublishersIsUpdating(
         VLOG(1) << "Notify subscribers to publishers data";
         // One-shot subscribers
         controller->on_current_update_complete_->Signal();
-        controller->is_update_in_progress_ = false;
-        controller->on_current_update_complete_ =
-            std::make_unique<base::OneShotEvent>();
+        controller->on_current_update_complete_.reset();
       },
       base::Unretained(this), subscriptions);
   api_request_helper_->Request("GET", sources_url, "", "",

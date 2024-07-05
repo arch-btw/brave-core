@@ -34,11 +34,11 @@
 // static
 void BraveNewsTabHelper::MaybeCreateForWebContents(
     content::WebContents* contents) {
-  if (contents->GetBrowserContext()->IsOffTheRecord()) {
-    return;
-  }
+  // if (contents->GetBrowserContext()->IsOffTheRecord()) {
+  //   return;
+  // }
 
-  CreateForWebContents(contents);
+  // CreateForWebContents(contents);
 }
 
 BraveNewsTabHelper::BraveNewsTabHelper(content::WebContents* contents)
