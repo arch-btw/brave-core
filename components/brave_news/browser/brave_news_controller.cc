@@ -22,6 +22,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/one_shot_event.h"
 #include "base/task/bind_post_task.h"
@@ -32,6 +33,7 @@
 #include "base/values.h"
 #include "brave/components/api_request_helper/api_request_helper.h"
 #include "brave/components/brave_ads/browser/ads_service.h"
+#include "brave/components/brave_news/browser/background_history_query.h"
 #include "brave/components/brave_news/browser/brave_news_engine.h"
 #include "brave/components/brave_news/browser/brave_news_p3a.h"
 #include "brave/components/brave_news/browser/brave_news_pref_manager.h"
@@ -121,7 +123,9 @@ BraveNewsController::BraveNewsController(
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
            base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN})),
       engine_(std::unique_ptr<BraveNewsEngine, base::OnTaskRunnerDeleter>(
-          new BraveNewsEngine(url_loader_factory->Clone()),
+          new BraveNewsEngine(url_loader_factory->Clone(),
+                              MakeHistoryQuerier(history_service_->AsWeakPtr(),
+                                                 &task_tracker_)),
           base::OnTaskRunnerDeleter(task_runner_))),
       initialization_promise_(
           3,
@@ -803,7 +807,9 @@ void BraveNewsController::ConditionallyStartOrStopTimer() {
 
     // Reset our engine so all the caches are deleted.
     engine_ = std::unique_ptr<BraveNewsEngine, base::OnTaskRunnerDeleter>(
-        new BraveNewsEngine(url_loader_factory_->Clone()),
+        new BraveNewsEngine(
+            url_loader_factory_->Clone(),
+            MakeHistoryQuerier(history_service_->AsWeakPtr(), &task_tracker_)),
         base::OnTaskRunnerDeleter(task_runner_));
   }
 }

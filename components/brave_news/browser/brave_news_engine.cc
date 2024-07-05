@@ -11,9 +11,9 @@
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "brave/components/api_request_helper/api_request_helper.h"
+#include "brave/components/brave_news/browser/background_history_query.h"
 #include "brave/components/brave_news/browser/channels_controller.h"
 #include "brave/components/brave_news/browser/feed_controller.h"
 #include "brave/components/brave_news/browser/feed_v2_builder.h"
@@ -28,9 +28,11 @@
 namespace brave_news {
 BraveNewsEngine::BraveNewsEngine(
     std::unique_ptr<network::PendingSharedURLLoaderFactory>
-        pending_shared_url_loader_factory)
+        pending_shared_url_loader_factory,
+    BackgroundHistoryQuerier history_querier)
     : pending_shared_url_loader_factory_(
-          std::move(pending_shared_url_loader_factory)) {
+          std::move(pending_shared_url_loader_factory)),
+      history_querier_(std::move(history_querier)) {
   DETACH_FROM_SEQUENCE(sequence_checker_);
   sequence_checker_.EnableStackLogging();
 }
@@ -245,7 +247,7 @@ SuggestionsController* BraveNewsEngine::GetSuggestionsController() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!suggestions_controller_) {
     suggestions_controller_ = std::make_unique<SuggestionsController>(
-        GetPublishersController(), GetApiRequestHelper(), nullptr);
+        GetPublishersController(), GetApiRequestHelper(), history_querier_);
   }
 
   return suggestions_controller_.get();

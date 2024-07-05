@@ -13,6 +13,7 @@
 #include "base/sequence_checker.h"
 #include "base/thread_annotations.h"
 #include "brave/components/api_request_helper/api_request_helper.h"
+#include "brave/components/brave_news/browser/background_history_query.h"
 #include "brave/components/brave_news/browser/channels_controller.h"
 #include "brave/components/brave_news/browser/feed_controller.h"
 #include "brave/components/brave_news/browser/feed_v2_builder.h"
@@ -32,7 +33,8 @@ class BraveNewsEngine : public base::SupportsWeakPtr<BraveNewsEngine> {
 
   explicit BraveNewsEngine(
       std::unique_ptr<network::PendingSharedURLLoaderFactory>
-          pending_shared_url_loader_factory);
+          pending_shared_url_loader_factory,
+      BackgroundHistoryQuerier history_querier);
   BraveNewsEngine(const BraveNewsEngine&) = delete;
   BraveNewsEngine& operator=(const BraveNewsEngine&) = delete;
   ~BraveNewsEngine();
@@ -78,6 +80,9 @@ class BraveNewsEngine : public base::SupportsWeakPtr<BraveNewsEngine> {
 
   std::unique_ptr<network::PendingSharedURLLoaderFactory>
       pending_shared_url_loader_factory_ GUARDED_BY_CONTEXT(sequence_checker_);
+
+  BackgroundHistoryQuerier history_querier_
+      GUARDED_BY_CONTEXT(sequence_checker_);
 
   std::unique_ptr<api_request_helper::APIRequestHelper> api_request_helper_
       GUARDED_BY_CONTEXT(sequence_checker_);
