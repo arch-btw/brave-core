@@ -6,6 +6,7 @@
 #include "brave/components/brave_news/browser/brave_news_engine.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
@@ -28,15 +29,8 @@ namespace brave_news {
 BraveNewsEngine::BraveNewsEngine(
     std::unique_ptr<network::PendingSharedURLLoaderFactory>
         pending_shared_url_loader_factory)
-    : url_loader_factory_(network::SharedURLLoaderFactory::Create(
-          std::move(pending_shared_url_loader_factory))),
-      api_request_helper_(GetNetworkTrafficAnnotationTag(),
-                          url_loader_factory_),
-      publishers_controller_(&api_request_helper_),
-      channels_controller_(&publishers_controller_),
-      suggestions_controller_(&publishers_controller_,
-                              &api_request_helper_,
-                              nullptr) {
+    : pending_shared_url_loader_factory_(
+          std::move(pending_shared_url_loader_factory)) {
   DETACH_FROM_SEQUENCE(sequence_checker_);
   sequence_checker_.EnableStackLogging();
 }
@@ -48,7 +42,7 @@ BraveNewsEngine::~BraveNewsEngine() {
 void BraveNewsEngine::GetLocale(SubscriptionsSnapshot snapshot,
                                 m::GetLocaleCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  publishers_controller_.GetLocale(snapshot, std::move(callback));
+  GetPublishersController()->GetLocale(snapshot, std::move(callback));
 }
 
 void BraveNewsEngine::GetSignals(SubscriptionsSnapshot snapshot,
@@ -63,13 +57,14 @@ void BraveNewsEngine::GetSignals(SubscriptionsSnapshot snapshot,
 void BraveNewsEngine::GetPublishers(SubscriptionsSnapshot snapshot,
                                     m::GetPublishersCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  publishers_controller_.GetOrFetchPublishers(snapshot, std::move(callback));
+  GetPublishersController()->GetOrFetchPublishers(snapshot,
+                                                  std::move(callback));
 }
 
 void BraveNewsEngine::EnsurePublishersIsUpdating(
     SubscriptionsSnapshot snapshot) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  publishers_controller_.EnsurePublishersIsUpdating(snapshot);
+  GetPublishersController()->EnsurePublishersIsUpdating(snapshot);
 }
 
 void BraveNewsEngine::EnsureFeedV2IsUpdating(SubscriptionsSnapshot snapshot) {
@@ -92,24 +87,24 @@ void BraveNewsEngine::IsFeedV1UpdateAvailable(
 void BraveNewsEngine::GetChannels(SubscriptionsSnapshot snapshot,
                                   m::GetChannelsCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  channels_controller_.GetAllChannels(snapshot, std::move(callback));
+  GetChannelsController()->GetAllChannels(snapshot, std::move(callback));
 }
 
 void BraveNewsEngine::GetSuggestedPublisherIds(
     SubscriptionsSnapshot snapshot,
     m::GetSuggestedPublisherIdsCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  suggestions_controller_.GetSuggestedPublisherIds(snapshot,
-                                                   std::move(callback));
+  GetSuggestionsController()->GetSuggestedPublisherIds(snapshot,
+                                                       std::move(callback));
 }
 
 void BraveNewsEngine::GetFeed(SubscriptionsSnapshot snapshot,
                               m::GetFeedCallback callback) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  auto* builder = MaybeFeedV1Builder();
-  CHECK(builder);
-
-  builder->GetOrFetchFeed(snapshot, std::move(callback));
+  if (auto* builder = MaybeFeedV1Builder()) {
+    builder->GetOrFetchFeed(snapshot, std::move(callback));
+  } else {
+    std::move(callback).Run(mojom::Feed::New());
+  }
 }
 
 void BraveNewsEngine::GetFeedV2(SubscriptionsSnapshot snapshot,
@@ -184,8 +179,8 @@ FeedV2Builder* BraveNewsEngine::MaybeFeedV2Builder() {
 
   if (!feed_v2_builder_) {
     feed_v2_builder_ = std::make_unique<FeedV2Builder>(
-        publishers_controller_, channels_controller_, suggestions_controller_,
-        nullptr, url_loader_factory_);
+        *GetPublishersController(), *GetChannelsController(),
+        *GetSuggestionsController(), nullptr, GetSharedURLLoaderFactory());
   }
 
   return feed_v2_builder_.get();
@@ -199,15 +194,61 @@ FeedController* BraveNewsEngine::MaybeFeedV1Builder() {
 
   if (!feed_controller_) {
     feed_controller_ = std::make_unique<FeedController>(
-        &publishers_controller_, nullptr, url_loader_factory_);
+        GetPublishersController(), nullptr, GetSharedURLLoaderFactory());
   }
 
   return feed_controller_.get();
 }
 
-base::WeakPtr<BraveNewsEngine> BraveNewsEngine::GetWeakPtr() {
+scoped_refptr<network::SharedURLLoaderFactory>
+BraveNewsEngine::GetSharedURLLoaderFactory() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return weak_ptr_factory_.GetWeakPtr();
+
+  auto factory = network::SharedURLLoaderFactory::Create(
+      std::move(pending_shared_url_loader_factory_));
+  pending_shared_url_loader_factory_ = factory->Clone();
+  return factory;
+}
+
+api_request_helper::APIRequestHelper* BraveNewsEngine::GetApiRequestHelper() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!api_request_helper_) {
+    api_request_helper_ =
+        std::make_unique<api_request_helper::APIRequestHelper>(
+            GetNetworkTrafficAnnotationTag(), GetSharedURLLoaderFactory());
+  }
+
+  return api_request_helper_.get();
+}
+
+PublishersController* BraveNewsEngine::GetPublishersController() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!publishers_controller_) {
+    publishers_controller_ =
+        std::make_unique<PublishersController>(GetApiRequestHelper());
+  }
+
+  return publishers_controller_.get();
+}
+
+ChannelsController* BraveNewsEngine::GetChannelsController() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!channels_controller_) {
+    channels_controller_ =
+        std::make_unique<ChannelsController>(GetPublishersController());
+  }
+
+  return channels_controller_.get();
+}
+
+SuggestionsController* BraveNewsEngine::GetSuggestionsController() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!suggestions_controller_) {
+    suggestions_controller_ = std::make_unique<SuggestionsController>(
+        GetPublishersController(), GetApiRequestHelper(), nullptr);
+  }
+
+  return suggestions_controller_.get();
 }
 
 }  // namespace brave_news

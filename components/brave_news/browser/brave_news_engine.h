@@ -25,7 +25,7 @@
 
 namespace brave_news {
 
-class BraveNewsEngine {
+class BraveNewsEngine : public base::SupportsWeakPtr<BraveNewsEngine> {
  public:
   // Alias so its easier to reuse the callbacks from the mojom interface.
   using m = mojom::BraveNewsController;
@@ -66,21 +66,27 @@ class BraveNewsEngine {
   void GetSuggestedPublisherIds(SubscriptionsSnapshot snapshot,
                                 m::GetSuggestedPublisherIdsCallback callback);
 
-  base::WeakPtr<BraveNewsEngine> GetWeakPtr();
-
  private:
   FeedV2Builder* MaybeFeedV2Builder();
   FeedController* MaybeFeedV1Builder();
 
-  scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_
-      GUARDED_BY_CONTEXT(sequence_checker_);
-  api_request_helper::APIRequestHelper api_request_helper_
+  scoped_refptr<network::SharedURLLoaderFactory> GetSharedURLLoaderFactory();
+  api_request_helper::APIRequestHelper* GetApiRequestHelper();
+  PublishersController* GetPublishersController();
+  ChannelsController* GetChannelsController();
+  SuggestionsController* GetSuggestionsController();
+
+  std::unique_ptr<network::PendingSharedURLLoaderFactory>
+      pending_shared_url_loader_factory_ GUARDED_BY_CONTEXT(sequence_checker_);
+
+  std::unique_ptr<api_request_helper::APIRequestHelper> api_request_helper_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
-  PublishersController publishers_controller_
+  std::unique_ptr<PublishersController> publishers_controller_
       GUARDED_BY_CONTEXT(sequence_checker_);
-  ChannelsController channels_controller_ GUARDED_BY_CONTEXT(sequence_checker_);
-  SuggestionsController suggestions_controller_
+  std::unique_ptr<ChannelsController> channels_controller_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+  std::unique_ptr<SuggestionsController> suggestions_controller_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
   std::unique_ptr<FeedController> feed_controller_
@@ -90,8 +96,6 @@ class BraveNewsEngine {
       GUARDED_BY_CONTEXT(sequence_checker_);
 
   SEQUENCE_CHECKER(sequence_checker_);
-
-  base::WeakPtrFactory<BraveNewsEngine> weak_ptr_factory_{this};
 };
 
 }  // namespace brave_news

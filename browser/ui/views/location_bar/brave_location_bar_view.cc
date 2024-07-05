@@ -120,12 +120,12 @@ void BraveLocationBarView::Init() {
   }
 
   if (!browser_->profile()->IsOffTheRecord()) {
-    brave_news_action_icon_view_ =
-        AddChildView(std::make_unique<BraveNewsActionIconView>(
-            browser_->profile(), this, this));
-    brave_news_action_icon_view_->SetVisible(false);
-    views::InkDrop::Get(brave_news_action_icon_view_)
-        ->SetVisibleOpacity(GetPageActionInkDropVisibleOpacity());
+    // brave_news_action_icon_view_ =
+    //     AddChildView(std::make_unique<BraveNewsActionIconView>(
+    //         browser_->profile(), this, this));
+    // brave_news_action_icon_view_->SetVisible(false);
+    // views::InkDrop::Get(brave_news_action_icon_view_)
+    //     ->SetVisibleOpacity(GetPageActionInkDropVisibleOpacity());
   }
 #if BUILDFLAG(ENABLE_TOR)
   onion_location_view_ =
