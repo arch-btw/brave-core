@@ -69,6 +69,7 @@ mojom::Publisher* FindMatchPreferringLocale(
 // Apart from fetching, we need to make sure the subscriptions are up to date.
 void ApplySubscriptions(Publishers& publishers,
                         const SubscriptionsSnapshot& subscriptions) {
+  DVLOG(1) << __FUNCTION__;
   // Remove all direct feeds - they'll get re-added.
   for (auto it = publishers.begin(); it != publishers.end();) {
     if (it->second->type == mojom::PublisherType::DIRECT_SOURCE) {
@@ -177,6 +178,7 @@ void PublishersController::GetOrFetchPublishers(
   if (!publishers_.empty() &&
       (!wait_for_current_update || !on_current_update_complete_)) {
     // Make sure the subscriptions are up to date.
+    DVLOG(1) << "Not refetching publishers, responding from cache.";
     ApplySubscriptions(publishers_, subscriptions);
     std::move(callback).Run();
     return;
@@ -197,6 +199,7 @@ void PublishersController::GetLocale(
           [](PublishersController* controller,
              mojom::BraveNewsController::GetLocaleCallback callback,
              Publishers _) {
+            VLOG(1) << "Got locale: " << controller->default_locale_;
             std::move(callback).Run(controller->default_locale_);
           },
           base::Unretained(this), std::move(callback)));
@@ -234,6 +237,7 @@ void PublishersController::EnsurePublishersIsUpdating(
 
         // Update failed, we'll just reuse whatever publishers we had before.
         if (!publisher_list) {
+          DVLOG(1) << "Failed to fetch publisher list";
           controller->on_current_update_complete_->Signal();
           controller->on_current_update_complete_.reset();
           return;
