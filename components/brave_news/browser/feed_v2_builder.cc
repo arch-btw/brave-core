@@ -29,6 +29,7 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "brave/components/brave_news/api/topics.h"
+#include "brave/components/brave_news/browser/background_history_query.h"
 #include "brave/components/brave_news/browser/channels_controller.h"
 #include "brave/components/brave_news/browser/feed_fetcher.h"
 #include "brave/components/brave_news/browser/feed_generation_info.h"
@@ -610,7 +611,7 @@ FeedV2Builder::FeedV2Builder(
     PublishersController& publishers_controller,
     ChannelsController& channels_controller,
     SuggestionsController& suggestions_controller,
-    history::HistoryService* history_service,
+    BackgroundHistoryQuerier& history_querier,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
     : publishers_controller_(publishers_controller),
       channels_controller_(channels_controller),
@@ -619,7 +620,7 @@ FeedV2Builder::FeedV2Builder(
       topics_fetcher_(url_loader_factory),
       signal_calculator_(publishers_controller,
                          channels_controller,
-                         *history_service) {}
+                         history_querier) {}
 
 FeedV2Builder::~FeedV2Builder() = default;
 

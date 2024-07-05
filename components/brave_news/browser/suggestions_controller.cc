@@ -134,7 +134,7 @@ SuggestionsController::PublisherSimilarities ParseSimilarityResponse(
 SuggestionsController::SuggestionsController(
     PublishersController* publishers_controller,
     api_request_helper::APIRequestHelper* api_request_helper,
-    BackgroundHistoryQuerier history_querier)
+    BackgroundHistoryQuerier& history_querier)
     : publishers_controller_(publishers_controller),
       api_request_helper_(api_request_helper),
       history_querier_(history_querier),
@@ -156,7 +156,7 @@ void SuggestionsController::GetSuggestedPublisherIds(
                     [](SuggestionsController* controller,
                        GetSuggestedPublisherIdsCallback callback,
                        Publishers publishers) {
-                      controller->history_querier_.Run(base::BindOnce(
+                      controller->history_querier_->Run(base::BindOnce(
                           [](SuggestionsController* controller,
                              Publishers publishers,
                              GetSuggestedPublisherIdsCallback callback,

@@ -43,7 +43,7 @@ class SuggestionsController {
   explicit SuggestionsController(
       PublishersController* publishers_controller,
       api_request_helper::APIRequestHelper* api_request_helper,
-      BackgroundHistoryQuerier history_querier);
+      BackgroundHistoryQuerier& history_querier);
   SuggestionsController(const SuggestionsController&) = delete;
   SuggestionsController& operator=(const SuggestionsController&) = delete;
   ~SuggestionsController();
@@ -67,7 +67,7 @@ class SuggestionsController {
 
   raw_ptr<PublishersController> publishers_controller_;
   raw_ptr<api_request_helper::APIRequestHelper> api_request_helper_;
-  BackgroundHistoryQuerier history_querier_;
+  raw_ref<BackgroundHistoryQuerier> history_querier_;
   std::unique_ptr<base::OneShotEvent> on_current_update_complete_;
 
   std::string locale_;

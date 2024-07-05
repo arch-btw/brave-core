@@ -182,7 +182,8 @@ FeedV2Builder* BraveNewsEngine::MaybeFeedV2Builder() {
   if (!feed_v2_builder_) {
     feed_v2_builder_ = std::make_unique<FeedV2Builder>(
         *GetPublishersController(), *GetChannelsController(),
-        *GetSuggestionsController(), nullptr, GetSharedURLLoaderFactory());
+        *GetSuggestionsController(), history_querier_,
+        GetSharedURLLoaderFactory());
   }
 
   return feed_v2_builder_.get();
@@ -196,7 +197,8 @@ FeedController* BraveNewsEngine::MaybeFeedV1Builder() {
 
   if (!feed_controller_) {
     feed_controller_ = std::make_unique<FeedController>(
-        GetPublishersController(), nullptr, GetSharedURLLoaderFactory());
+        GetPublishersController(), history_querier_,
+        GetSharedURLLoaderFactory());
   }
 
   return feed_controller_.get();
