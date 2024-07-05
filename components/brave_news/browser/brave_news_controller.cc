@@ -89,6 +89,8 @@ mojo::StructPtr<EventType> CreateChangeEvent(
 
 }  // namespace
 
+// Invokes a method on the BraveNewsEngine in a background thread and invokes
+// |CB| on the current thread.
 #define IN_ENGINE(Method, CB, ...)                                   \
   task_runner_->PostTask(                                            \
       FROM_HERE,                                                     \
@@ -97,6 +99,8 @@ mojo::StructPtr<EventType> CreateChangeEvent(
                      __VA_ARGS__ __VA_OPT__(, )                      \
                          base::BindPostTaskToCurrentDefault(CB)))
 
+// Invokes a method on the BraveNewsEngine in a background thread. Unlike
+// |IN_ENGINE| it doesn't take a reply callback (it's Fire and Forget).
 #define IN_ENGINE_FF(Method)                                         \
   task_runner_->PostTask(                                            \
       FROM_HERE,                                                     \
